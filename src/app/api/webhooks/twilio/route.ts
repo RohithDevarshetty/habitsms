@@ -9,9 +9,9 @@ export async function POST(request: NextRequest) {
   try {
     // Get request body
     const formData = await request.formData()
-    const body: Record<string, any> = {}
+    const body: Record<string, string> = {}
     formData.forEach((value, key) => {
-      body[key] = value
+      body[key] = value.toString()
     })
 
     // Verify Twilio signature
@@ -102,10 +102,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ message: 'Success' }, { status: 200 })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Webhook error:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     )
   }

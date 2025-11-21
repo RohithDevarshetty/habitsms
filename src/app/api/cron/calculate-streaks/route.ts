@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
 import { resetMissedStreaks } from '@/lib/habits/streaks'
 
 function verifyCronSecret(request: NextRequest): boolean {
@@ -31,11 +30,11 @@ export async function GET(request: NextRequest) {
       message: 'Streak calculations completed',
       timestamp: new Date().toISOString(),
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Streak Calculation] Fatal error:', error)
     return NextResponse.json(
       {
-        error: error.message || 'Failed to calculate streaks',
+        error: error instanceof Error ? error.message : 'Failed to calculate streaks',
         timestamp: new Date().toISOString(),
       },
       { status: 500 }

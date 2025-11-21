@@ -24,7 +24,7 @@ export async function calculateAndUpdateStreak(habitId: string): Promise<number>
 
   // Calculate streak
   let streak = 0
-  let currentDate = startOfDay(new Date())
+  const currentDate = startOfDay(new Date())
 
   for (let i = 0; i < logs.length; i++) {
     const logDate = startOfDay(new Date(logs[i].logged_at))

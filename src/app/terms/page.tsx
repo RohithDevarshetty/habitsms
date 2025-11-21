@@ -76,7 +76,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">9. Limitation of Liability</h2>
-            <p>HabitSMS is provided "as is". We are not liable for any damages resulting from use of our service, including missed habits or SMS delivery issues.</p>
+            <p>HabitSMS is provided &quot;as is&quot;. We are not liable for any damages resulting from use of our service, including missed habits or SMS delivery issues.</p>
           </section>
 
           <section>

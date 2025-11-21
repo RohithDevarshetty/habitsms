@@ -25,7 +25,6 @@ const PATTERNS = {
 
 export function parseSMSResponse(text: string): ParsedSMSResponse {
   const trimmed = text.trim()
-  const normalized = trimmed.toLowerCase()
 
   // Check for affirmative response
   if (PATTERNS.affirmative.test(trimmed)) {

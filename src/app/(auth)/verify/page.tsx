@@ -34,8 +34,8 @@ export default function VerifyPage() {
       if (error) throw error
 
       router.push('/onboarding')
-    } catch (error: any) {
-      setMessage(error.message || 'Invalid verification code')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Invalid verification code')
     } finally {
       setLoading(false)
     }
@@ -56,8 +56,8 @@ export default function VerifyPage() {
       if (error) throw error
 
       setMessage('New code sent!')
-    } catch (error: any) {
-      setMessage(error.message || 'Failed to resend code')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to resend code')
     } finally {
       setLoading(false)
     }
@@ -118,7 +118,7 @@ export default function VerifyPage() {
             disabled={loading}
             className="text-sm text-blue-600 hover:underline disabled:opacity-50"
           >
-            Didn't receive the code? Resend
+            Didn&apos;t receive the code? Resend
           </button>
         </div>
 

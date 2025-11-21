@@ -5,8 +5,18 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import { HABIT_TEMPLATES } from '@/types/habits'
 
+interface Habit {
+  id: string
+  name: string
+  reminder_time: string
+  reminder_enabled: boolean
+  response_type: string
+  response_unit: string | null
+  template_type: string | null
+}
+
 export default function EditHabitPage() {
-  const [habit, setHabit] = useState<any>(null)
+  const [habit, setHabit] = useState<Habit | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
@@ -15,6 +25,7 @@ export default function EditHabitPage() {
 
   useEffect(() => {
     loadHabit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function loadHabit() {
@@ -128,7 +139,7 @@ export default function EditHabitPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  You'll receive an SMS reminder at this time every day
+                  You&apos;ll receive an SMS reminder at this time every day
                 </p>
               </div>
 

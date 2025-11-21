@@ -1,4 +1,4 @@
-import { format, utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
+import { format, toZonedTime, fromZonedTime } from 'date-fns-tz'
 
 /**
  * Convert a time string (HH:MM) in user's timezone to UTC Date
@@ -7,21 +7,21 @@ export function convertTimeToUTC(timeString: string, timezone: string): Date {
   const now = new Date()
   const dateString = format(now, 'yyyy-MM-dd')
   const localDateTime = new Date(`${dateString}T${timeString}:00`)
-  return zonedTimeToUtc(localDateTime, timezone)
+  return fromZonedTime(localDateTime, timezone)
 }
 
 /**
  * Convert UTC time to user's timezone
  */
 export function convertUTCToTimezone(utcDate: Date, timezone: string): Date {
-  return utcToZonedTime(utcDate, timezone)
+  return toZonedTime(utcDate, timezone)
 }
 
 /**
  * Get current time in user's timezone
  */
 export function getCurrentTimeInTimezone(timezone: string): Date {
-  return utcToZonedTime(new Date(), timezone)
+  return toZonedTime(new Date(), timezone)
 }
 
 /**
@@ -32,7 +32,7 @@ export function formatTimeInTimezone(
   timezone: string,
   formatString: string = 'HH:mm'
 ): string {
-  const zonedDate = utcToZonedTime(date, timezone)
+  const zonedDate = toZonedTime(date, timezone)
   return format(zonedDate, formatString, { timeZone: timezone })
 }
 
@@ -42,7 +42,8 @@ export function formatTimeInTimezone(
 export function isReminderTime(
   reminderTime: string, // HH:MM format
   timezone: string,
-  toleranceMinutes: number = 5
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _toleranceMinutes: number = 5
 ): boolean {
   const now = getCurrentTimeInTimezone(timezone)
   const currentTime = format(now, 'HH:mm')
@@ -56,7 +57,8 @@ export function isReminderTime(
  */
 export function getUsersAtTime(
   targetTime: string, // HH:MM format
-  toleranceMinutes: number = 5
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _toleranceMinutes: number = 5
 ): string[] {
   // This would query the database for users whose current time matches targetTime
   // Implementation depends on how you want to handle this

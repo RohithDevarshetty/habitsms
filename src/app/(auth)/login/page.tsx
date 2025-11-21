@@ -29,8 +29,8 @@ export default function LoginPage() {
       if (error) throw error
 
       setMessage('Check your email for the login link!')
-    } catch (error: any) {
-      setMessage(error.message || 'Failed to send login email')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to send login email')
     } finally {
       setLoading(false)
     }
@@ -53,8 +53,8 @@ export default function LoginPage() {
 
       setMessage('Check your phone for the verification code!')
       router.push(`/verify?phone=${encodeURIComponent(phone)}`)
-    } catch (error: any) {
-      setMessage(error.message || 'Failed to send verification code')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to send verification code')
     } finally {
       setLoading(false)
     }
@@ -71,8 +71,8 @@ export default function LoginPage() {
       })
 
       if (error) throw error
-    } catch (error: any) {
-      setMessage(error.message || 'Failed to login with Google')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to login with Google')
       setLoading(false)
     }
   }

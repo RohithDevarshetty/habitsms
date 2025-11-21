@@ -13,8 +13,20 @@ interface HabitLog {
   logged_at: string
 }
 
+interface Habit {
+  id: string
+  name: string
+  reminder_time: string
+  reminder_enabled: boolean
+  streak_count: number
+  longest_streak: number
+  response_type: string
+  response_unit: string | null
+  template_type: string | null
+}
+
 export default function HabitDetailPage() {
-  const [habit, setHabit] = useState<any>(null)
+  const [habit, setHabit] = useState<Habit | null>(null)
   const [logs, setLogs] = useState<HabitLog[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -23,6 +35,7 @@ export default function HabitDetailPage() {
 
   useEffect(() => {
     loadHabit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function loadHabit() {

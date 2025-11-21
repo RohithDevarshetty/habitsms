@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        const userId = session.client_reference_id || session.subscription_data?.metadata?.userId
+        const userId = session.client_reference_id
 
         if (!userId) {
           console.error('No userId in checkout session')
@@ -153,10 +153,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true })
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Stripe Webhook] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Webhook error' },
+      { error: error instanceof Error ? error.message : 'Webhook error' },
       { status: 400 }
     )
   }

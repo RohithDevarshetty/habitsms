@@ -43,10 +43,10 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Welcome SMS error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to send welcome SMS' },
+      { error: error instanceof Error ? error.message : 'Failed to send welcome SMS' },
       { status: 500 }
     )
   }

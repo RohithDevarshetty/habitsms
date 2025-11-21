@@ -98,11 +98,11 @@ export async function GET(request: NextRequest) {
       errors: errorCount,
       timestamp: now.toISOString(),
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Weekly Summary] Fatal error:', error)
     return NextResponse.json(
       {
-        error: error.message || 'Failed to send summaries',
+        error: error instanceof Error ? error.message : 'Failed to send summaries',
         timestamp: new Date().toISOString(),
       },
       { status: 500 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendSMS, SMS_TEMPLATES } from '@/lib/twilio/sms'
 import { format } from 'date-fns'
-import { utcToZonedTime } from 'date-fns-tz'
+import { toZonedTime } from 'date-fns-tz'
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: NextRequest): boolean {
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         if (!profile) continue
 
         // Convert current UTC time to user's timezone
-        const userTime = utcToZonedTime(now, profile.timezone)
+        const userTime = toZonedTime(now, profile.timezone)
         const userCurrentTime = format(userTime, 'HH:mm')
 
         // Check if it's time to send reminder (within same minute)
@@ -117,11 +117,11 @@ export async function GET(request: NextRequest) {
       errors: errorCount,
       timestamp: now.toISOString(),
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Cron] Fatal error:', error)
     return NextResponse.json(
       {
-        error: error.message || 'Failed to send reminders',
+        error: error instanceof Error ? error.message : 'Failed to send reminders',
         timestamp: new Date().toISOString(),
       },
       { status: 500 }

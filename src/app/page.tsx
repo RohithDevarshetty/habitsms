@@ -96,13 +96,13 @@ export default function Home() {
               <div className="text-5xl mb-4">💬</div>
               <div className="text-blue-600 font-semibold mb-2">Step 2</div>
               <h3 className="text-xl font-bold mb-3">Receive SMS</h3>
-              <p className="text-gray-600">Get a text at your scheduled time. "Did you meditate today? Reply Y or N"</p>
+              <p className="text-gray-600">Get a text at your scheduled time. &quot;Did you meditate today? Reply Y or N&quot;</p>
             </div>
             <div className="bg-white rounded-xl p-8 shadow-lg border-2 border-gray-100">
               <div className="text-5xl mb-4">🔥</div>
               <div className="text-blue-600 font-semibold mb-2">Step 3</div>
               <h3 className="text-xl font-bold mb-3">Track Streaks</h3>
-              <p className="text-gray-600">Just reply "Y" or "N". We track your streaks and celebrate milestones automatically.</p>
+              <p className="text-gray-600">Just reply &quot;Y&quot; or &quot;N&quot;. We track your streaks and celebrate milestones automatically.</p>
             </div>
           </div>
         </section>

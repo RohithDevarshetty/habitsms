@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { HABIT_TEMPLATES } from '@/types/habits'
+import { User } from '@supabase/supabase-js'
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
 
   // Step 1: User info
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -25,6 +26,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     checkUser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function checkUser() {
@@ -112,9 +114,9 @@ export default function OnboardingPage() {
       })
 
       router.push('/dashboard')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Onboarding error:', error)
-      alert(error.message || 'Failed to complete onboarding')
+      alert(error instanceof Error ? error.message : 'Failed to complete onboarding')
     } finally {
       setLoading(false)
     }
@@ -148,7 +150,7 @@ export default function OnboardingPage() {
         {/* Step 1: User Info */}
         {step === 1 && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Let's get started!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Let&apos;s get started!</h2>
             <p className="text-gray-600 mb-6">We need a few details to set up your account</p>
 
             <div className="space-y-4">
@@ -163,7 +165,7 @@ export default function OnboardingPage() {
                   placeholder="+1234567890"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <p className="text-xs text-gray-500 mt-1">We'll send habit reminders to this number</p>
+                <p className="text-xs text-gray-500 mt-1">We&apos;ll send habit reminders to this number</p>
               </div>
 
               <div>

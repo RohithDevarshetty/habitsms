@@ -16,7 +16,7 @@ export const TWILIO_PHONE_NUMBER = phoneNumber
 export function verifyTwilioWebhook(
   signature: string,
   url: string,
-  params: Record<string, any>
+  params: Record<string, string>
 ): boolean {
-  return twilio.validateRequest(authToken, signature, url, params)
+  return twilio.validateRequest(authToken!, signature, url, params)
 }

@@ -22,13 +22,13 @@ interface Habit {
 export default function DashboardPage() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     checkAuth()
     loadHabits()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function checkAuth() {
@@ -37,7 +37,6 @@ export default function DashboardPage() {
       router.push('/login')
       return
     }
-    setUser(user)
   }
 
   async function loadHabits() {

@@ -77,11 +77,11 @@ export async function sendSMS({
       success: true,
       messageId: twilioMessage.sid,
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('SMS send error:', error)
     return {
       success: false,
-      error: error.message || 'Failed to send SMS',
+      error: error instanceof Error ? error.message : 'Failed to send SMS',
     }
   }
 }
