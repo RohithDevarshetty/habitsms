@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { sendSMS, SMS_TEMPLATES } from '@/lib/twilio/sms'
+import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
 import { subDays, startOfWeek, endOfWeek, format } from 'date-fns'
 
 function verifyCronSecret(request: NextRequest): boolean {

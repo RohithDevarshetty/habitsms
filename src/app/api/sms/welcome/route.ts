@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { sendSMS, SMS_TEMPLATES } from '@/lib/twilio/sms'
+import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
 
 export async function POST(request: NextRequest) {
   try {

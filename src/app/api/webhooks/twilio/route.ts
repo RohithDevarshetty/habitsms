@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyTwilioWebhook } from '@/lib/twilio/client'
-import { sendSMS, SMS_TEMPLATES } from '@/lib/twilio/sms'
+import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
 import { parseSMSResponse, validateNumericResponse } from '@/lib/sms/parser'
 import { createServiceClient } from '@/lib/supabase/server'
 import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
@@ -22,9 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
     }
 
-    const from = body.From as string
+    const fromRaw = body.From as string
     const messageBody = body.Body as string
     const messageSid = body.MessageSid as string
+
+    // Detect if message is from WhatsApp
+    const isWhatsApp = fromRaw.startsWith('whatsapp:')
+    const from = fromRaw.replace('whatsapp:', '')
+    const channel = isWhatsApp ? 'whatsapp' : 'sms'
 
     if (!from || !messageBody) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -32,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient()
 
-    // Find user by phone number
+    // Find user by phone number (strip whatsapp: prefix if present)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -75,21 +80,22 @@ export async function POST(request: NextRequest) {
           to: from,
           message: SMS_TEMPLATES.HELP(),
           userId: profile.id,
+          channel,
         })
         break
 
       case 'stats':
-        await handleStatsRequest(profile.id, from)
+        await handleStatsRequest(profile.id, from, channel)
         break
 
       case 'pause':
-        await handlePauseRequest(profile.id, from)
+        await handlePauseRequest(profile.id, from, channel)
         break
 
       case 'completed':
       case 'skipped':
       case 'number':
-        await handleHabitResponse(profile.id, from, parsed)
+        await handleHabitResponse(profile.id, from, parsed, channel)
         break
 
       case 'unknown':
@@ -97,6 +103,7 @@ export async function POST(request: NextRequest) {
           to: from,
           message: SMS_TEMPLATES.HELP(),
           userId: profile.id,
+          channel,
         })
         break
     }
@@ -114,11 +121,11 @@ export async function POST(request: NextRequest) {
 async function handleHabitResponse(
   userId: string,
   phoneNumber: string,
-  parsed: ReturnType<typeof parseSMSResponse>
+  parsed: ReturnType<typeof parseSMSResponse>,
+  channel: 'sms' | 'whatsapp' = 'sms'
 ) {
   const supabase = createServiceClient()
 
-  // Get user's active habits (most recently reminded)
   const { data: habits } = await supabase
     .from('habits')
     .select('*')
@@ -132,13 +139,13 @@ async function handleHabitResponse(
       to: phoneNumber,
       message: 'No active habits found. Please create a habit first.',
       userId,
+      channel,
     })
     return
   }
 
   const habit = habits[0]
 
-  // Validate response type matches habit
   if (
     habit.response_type === 'number' &&
     parsed.type !== 'number' &&
@@ -149,11 +156,11 @@ async function handleHabitResponse(
       message: `Please reply with a number for ${habit.name}, or N to skip.`,
       userId,
       habitId: habit.id,
+      channel,
     })
     return
   }
 
-  // Validate numeric value if applicable
   if (parsed.type === 'number' && parsed.value !== undefined) {
     const validation = validateNumericResponse(parsed.value, habit.response_unit || '')
     if (!validation.valid) {
@@ -162,12 +169,12 @@ async function handleHabitResponse(
         message: validation.error || 'Invalid value',
         userId,
         habitId: habit.id,
+        channel,
       })
       return
     }
   }
 
-  // Log habit completion
   const completed = parsed.type === 'completed' || parsed.type === 'number'
   const responseValue =
     parsed.type === 'number' ? parsed.value?.toString() : parsed.type === 'completed' ? 'Y' : 'N'
@@ -177,17 +184,14 @@ async function handleHabitResponse(
     user_id: userId,
     completed,
     response_value: responseValue,
-    source: 'sms',
+    source: channel,
   })
 
-  // Update streak
   const streak = await calculateAndUpdateStreak(habit.id)
 
-  // Send confirmation
   if (completed) {
     let message = SMS_TEMPLATES.CONFIRMATION(habit.name, streak)
 
-    // Check for milestones
     if (streak === 7) {
       message = SMS_TEMPLATES.MILESTONE_7(habit.name)
     } else if (streak === 30) {
@@ -201,6 +205,7 @@ async function handleHabitResponse(
       message,
       userId,
       habitId: habit.id,
+      channel,
     })
   } else {
     await sendSMS({
@@ -208,11 +213,16 @@ async function handleHabitResponse(
       message: `Got it! ${habit.name} marked as skipped for today.`,
       userId,
       habitId: habit.id,
+      channel,
     })
   }
 }
 
-async function handleStatsRequest(userId: string, phoneNumber: string) {
+async function handleStatsRequest(
+  userId: string,
+  phoneNumber: string,
+  channel: 'sms' | 'whatsapp' = 'sms'
+) {
   const supabase = createServiceClient()
 
   const { data: habits } = await supabase
@@ -226,6 +236,7 @@ async function handleStatsRequest(userId: string, phoneNumber: string) {
       to: phoneNumber,
       message: 'No active habits yet. Create your first habit to get started!',
       userId,
+      channel,
     })
     return
   }
@@ -239,13 +250,17 @@ async function handleStatsRequest(userId: string, phoneNumber: string) {
     to: phoneNumber,
     message: stats.trim(),
     userId,
+    channel,
   })
 }
 
-async function handlePauseRequest(userId: string, phoneNumber: string) {
+async function handlePauseRequest(
+  userId: string,
+  phoneNumber: string,
+  channel: 'sms' | 'whatsapp' = 'sms'
+) {
   const supabase = createServiceClient()
 
-  // Disable all reminders
   await supabase
     .from('habits')
     .update({ reminder_enabled: false })
@@ -255,5 +270,6 @@ async function handlePauseRequest(userId: string, phoneNumber: string) {
     to: phoneNumber,
     message: '✈️ Vacation mode activated! All reminders paused. Reply RESUME to turn them back on.',
     userId,
+    channel,
   })
 }

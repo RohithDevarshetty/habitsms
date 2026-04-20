@@ -1,4 +1,4 @@
-import { twilioClient, TWILIO_PHONE_NUMBER } from './client'
+import { twilioClient, TWILIO_PHONE_NUMBER, TWILIO_WHATSAPP_NUMBER, formatTochannel, MessageChannel } from './client'
 import { createServiceClient } from '@/lib/supabase/server'
 import { parsePhoneNumber } from 'libphonenumber-js'
 
@@ -7,6 +7,7 @@ interface SendSMSParams {
   message: string
   userId: string
   habitId?: string
+  channel?: MessageChannel
 }
 
 interface SMSResult {
@@ -39,27 +40,25 @@ export async function sendSMS({
   message,
   userId,
   habitId,
+  channel = 'sms',
 }: SendSMSParams): Promise<SMSResult> {
   try {
-    // Validate phone number
     const parsed = parsePhoneNumber(to)
     if (!parsed || !parsed.isValid()) {
       return { success: false, error: 'Invalid phone number' }
     }
 
     const formattedPhone = parsed.format('E.164')
+    const fromNumber = channel === 'whatsapp' ? TWILIO_WHATSAPP_NUMBER : TWILIO_PHONE_NUMBER
 
-    // Send SMS via Twilio
     const twilioMessage = await twilioClient.messages.create({
       body: message,
-      from: TWILIO_PHONE_NUMBER,
-      to: formattedPhone,
+      from: formatTochannel(fromNumber, channel),
+      to: formatTochannel(formattedPhone, channel),
     })
 
-    // Calculate cost
     const costCents = getSMSCost(formattedPhone)
 
-    // Log SMS to database
     const supabase = createServiceClient()
     await supabase.from('sms_messages').insert({
       user_id: userId,
