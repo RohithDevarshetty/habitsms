@@ -1,329 +1,592 @@
+'use client'
+
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
+import { ArrowUpRight, Play, Zap, Clock, BarChart3, Globe, PartyPopper, Plane, X, Menu } from 'lucide-react'
+import DynamicPricing from '@/components/DynamicPricing'
+
+/* ----------------- Primitives ----------------- */
+
+function BlurText({
+  text,
+  className = '',
+  delay = 100,
+  by = 'words',
+}: {
+  text: string
+  className?: string
+  delay?: number
+  by?: 'words' | 'letters'
+}) {
+  const parts = useMemo(
+    () => (by === 'letters' ? [...text] : text.split(' ')),
+    [text, by]
+  )
+  return (
+    <span className={className} style={{ display: 'inline-block' }}>
+      {parts.map((p, i) => (
+        <Fragment key={`blur-${i}`}>
+          <span
+            className="blur-word"
+            style={{ animationDelay: `${(i * delay) / 1000}s` }}
+          >
+            {p}
+          </span>
+          {by === 'words' && i < parts.length - 1 ? (
+            <span style={{ display: 'inline-block', width: '0.28em', letterSpacing: 0 }}>
+              {'\u00A0'}
+            </span>
+          ) : null}
+        </Fragment>
+      ))}
+    </span>
+  )
+}
+
+/* ----------------- Chat demo ----------------- */
+
+interface ChatMessage {
+  id: number
+  from: 'user' | 'them'
+  text: string
+  time: string
+  type: 'sms' | 'whatsapp'
+}
+
+function WhatsAppDemo() {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [channel, setChannel] = useState<'sms' | 'whatsapp'>('sms')
+  const [isTyping, setIsTyping] = useState(false)
+  const [demoPhase, setDemoPhase] = useState(0)
+  const chatRef = useRef<HTMLDivElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  const DEMO_MESSAGES: { them: string; user: string }[] = [
+    {
+      them: 'Did you workout today?\nReply with:\nY - Yes, I did it!\nN - Not today',
+      user: 'Y',
+    },
+    {
+      them: 'Great job! Workout logged!\nCurrent streak: 7 days\nKeep it up!',
+      user: '',
+    },
+  ]
+
+  useEffect(() => {
+    if (demoPhase < DEMO_MESSAGES.length) {
+      const currentDemo = DEMO_MESSAGES[demoPhase]
+      setIsTyping(true)
+      const timer = setTimeout(() => {
+        setIsTyping(false)
+        const newMsg: ChatMessage = {
+          id: Date.now(),
+          from: 'them',
+          text: currentDemo.them,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: channel,
+        }
+        setMessages((prev) => [...prev, newMsg])
+        audioRef.current?.play().catch(() => {})
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [demoPhase, channel])
+
+  useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
+  }, [messages])
+
+  const handleReply = () => {
+    if (demoPhase >= DEMO_MESSAGES.length) return
+    const currentDemo = DEMO_MESSAGES[demoPhase]
+    const userMsg: ChatMessage = {
+      id: Date.now(),
+      from: 'user',
+      text: currentDemo.user,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: channel,
+    }
+    setMessages((prev) => [...prev, userMsg])
+    setDemoPhase((prev) => prev + 1)
+  }
+
+  const resetDemo = () => { setMessages([]); setDemoPhase(0) }
+  const setChannelAndReset = (ch: 'sms' | 'whatsapp') => { setChannel(ch); setMessages([]); setDemoPhase(0) }
+
+  return (
+    <div className="w-full max-w-sm mx-auto">
+      <audio
+        ref={audioRef}
+        src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleRkAQZjf6oNqFQM="
+        preload="auto"
+      />
+      <div className="liquid-glass rounded-3xl overflow-hidden">
+        <div className="px-4 py-3 flex items-center justify-between border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full liquid-glass-strong flex items-center justify-center text-white font-heading italic text-lg">H</div>
+            <div>
+              <div className="text-white font-body font-medium text-sm">HabitSMS</div>
+              <div className="text-white/50 text-xs font-body">{channel === 'whatsapp' ? 'WhatsApp' : 'SMS Demo'}</div>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            {(['sms', 'whatsapp'] as const).map((ch) => (
+              <button
+                key={ch}
+                onClick={() => setChannelAndReset(ch)}
+                className={`px-2.5 py-1 text-xs rounded-full font-medium transition ${channel === ch ? 'bg-white text-black' : 'liquid-glass text-white'}`}
+              >
+                {ch === 'sms' ? 'SMS' : 'WA'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div ref={chatRef} className="h-56 sm:h-64 overflow-y-auto p-3 sm:p-4">
+          {messages.length === 0 && (
+            <div className="text-center py-6">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full liquid-glass-strong flex items-center justify-center text-white font-heading italic text-xl">!</div>
+              <p className="text-sm text-white/60 font-body font-light">Tap &quot;Reply Y&quot; below to try it</p>
+            </div>
+          )}
+          {messages.map((msg) => (
+            <div key={msg.id} className={`mb-3 ${msg.from === 'them' ? 'slide-left' : 'slide-right'}`}>
+              {msg.from === 'them' ? (
+                <div className="flex items-end gap-2">
+                  <div className="w-7 h-7 rounded-full liquid-glass-strong flex items-center justify-center text-xs text-white font-medium shrink-0">H</div>
+                  <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tl-md text-sm liquid-glass text-white">
+                    <p className="whitespace-pre-line leading-relaxed font-body font-light">{msg.text}</p>
+                    <div className="text-[10px] text-white/40 mt-1 text-right font-body">{msg.time}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-end gap-2 justify-end">
+                  <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tr-md text-sm bg-white text-black">
+                    <p className="leading-relaxed font-body font-medium">{msg.text}</p>
+                    <div className="text-[10px] text-black/50 mt-1 text-right font-body">{msg.time}</div>
+                  </div>
+                  <div className="w-7 h-7 rounded-full liquid-glass-strong flex items-center justify-center text-xs text-white font-medium shrink-0">U</div>
+                </div>
+              )}
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-full liquid-glass-strong flex items-center justify-center text-xs text-white font-medium">H</div>
+              <div className="liquid-glass rounded-2xl rounded-tl-md px-4 py-3">
+                <div className="flex gap-1">
+                  {[0, 150, 300].map((d) => (
+                    <span key={d} className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-3 py-3 sm:px-4 flex gap-2 border-t border-white/10">
+          <button
+            onClick={handleReply}
+            disabled={demoPhase >= DEMO_MESSAGES.length || isTyping}
+            className={`flex-1 py-2.5 rounded-full font-medium text-sm transition whitespace-nowrap ${demoPhase >= DEMO_MESSAGES.length ? 'bg-white text-black' : 'liquid-glass-strong text-white'} disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {demoPhase >= DEMO_MESSAGES.length ? 'Great!' : 'Reply Y'}
+          </button>
+          <button onClick={resetDemo} className="px-4 py-2.5 rounded-full font-medium text-sm liquid-glass text-white whitespace-nowrap">
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ----------------- Page sections ----------------- */
+
+function Navbar() {
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const links = ['How It Works', 'Features', 'Pricing']
+
+  return (
+    <nav className="fixed top-4 left-0 right-0 z-50 px-5 sm:px-8 lg:px-16 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full liquid-glass-strong flex items-center justify-center shrink-0">
+            <div
+              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full"
+              style={{ background: 'radial-gradient(circle at 30% 30%, #fff, #cfd8ea 60%, #7a8cb8)' }}
+            />
+          </div>
+          <span className="hidden sm:block font-heading italic text-2xl tracking-tight">HabitSMS</span>
+        </div>
+
+        {/* Desktop nav */}
+        <div className="hidden md:flex liquid-glass rounded-full px-1.5 py-1 items-center gap-0">
+          {links.map((l, i) => (
+            <a
+              key={`nav-${i}`}
+              href={`#${l.toLowerCase().replace(/\s+/g, '-')}`}
+              className="px-3 py-2 text-sm font-medium text-white/90 font-body hover:text-white transition"
+            >
+              {l}
+            </a>
+          ))}
+          <button className="ml-1 bg-white text-black rounded-full px-3.5 py-1.5 text-sm font-medium flex items-center gap-1 hover:bg-white/90 transition whitespace-nowrap">
+            Sign Up <ArrowUpRight size={14} />
+          </button>
+        </div>
+
+        {/* Mobile menu button */}
+        <button
+          className="md:hidden liquid-glass-strong rounded-full p-2.5 text-white"
+          onClick={() => setMobileOpen((o) => !o)}
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
+      </div>
+
+      {/* Mobile dropdown */}
+      {mobileOpen && (
+        <div className="md:hidden mt-3 liquid-glass rounded-2xl p-4 flex flex-col gap-1">
+          {links.map((l, i) => (
+            <a
+              key={`mob-nav-${i}`}
+              href={`#${l.toLowerCase().replace(/\s+/g, '-')}`}
+              onClick={() => setMobileOpen(false)}
+              className="px-3 py-2.5 text-sm font-medium text-white/90 font-body hover:text-white transition rounded-xl hover:bg-white/5"
+            >
+              {l}
+            </a>
+          ))}
+          <button className="mt-2 bg-white text-black rounded-full px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-1 hover:bg-white/90 transition">
+            Sign Up <ArrowUpRight size={14} />
+          </button>
+        </div>
+      )}
+    </nav>
+  )
+}
+
+function Hero() {
+  const stats = [
+    { v: '98%', l: 'Open Rate' },
+    { v: 'Instant', l: 'Auto-Response' },
+    { v: '78%', l: 'Less Than Apps' },
+  ]
+  return (
+    <section className="relative overflow-visible min-h-[700px] sm:min-h-[850px] lg:min-h-[1000px]">
+      {/* Background gradient — replaces video placeholder */}
+      <div
+        className="absolute inset-0 w-full h-full z-0"
+        style={{
+          background: `
+            radial-gradient(1200px 600px at 30% 20%, rgba(90,130,200,0.35), transparent 60%),
+            radial-gradient(900px 500px at 75% 70%, rgba(50,80,150,0.35), transparent 60%),
+            linear-gradient(180deg, #0a1530 0%, #050a18 100%)
+          `,
+        }}
+      />
+      <div className="absolute inset-0 bg-black/5 z-0" />
+      <div
+        className="absolute top-0 left-0 right-0 z-[1] pointer-events-none"
+        style={{ height: 420, background: 'linear-gradient(to bottom, black 0%, rgba(0,0,0,0.75) 35%, rgba(0,0,0,0.3) 65%, transparent 100%)' }}
+      />
+      <div
+        className="absolute bottom-0 left-0 right-0 z-[1] pointer-events-none"
+        style={{ height: 420, background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.85) 70%, black 100%)' }}
+      />
+
+      <div className="relative z-10 flex flex-col items-center text-center h-full px-5 sm:px-8 lg:px-16 pt-28 sm:pt-36 md:pt-44 pb-12">
+        <div
+          className="liquid-glass rounded-full px-1 py-1 inline-flex items-center gap-2 blur-in whitespace-nowrap"
+          style={{ animationDelay: '0.2s' }}
+        >
+          <span className="bg-white text-black rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap">Limited</span>
+          <span className="text-xs md:text-sm text-white/90 font-body pr-3 whitespace-nowrap">
+            First 100 users get $4.99/mo lifetime.
+          </span>
+        </div>
+
+        <h1
+          className="mt-6 sm:mt-8 text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] font-heading italic text-white leading-[0.85] max-w-xs sm:max-w-xl md:max-w-3xl"
+          style={{ letterSpacing: '-2px' }}
+        >
+          <BlurText text="Build habits with a 98% success rate." delay={100} />
+        </h1>
+
+        <p
+          className="mt-5 sm:mt-6 text-sm md:text-base text-white font-body font-light leading-snug max-w-sm md:max-w-md blur-in"
+          style={{ animationDelay: '0.8s' }}
+        >
+          SMS reminders that actually work. No app to install, no notifications to ignore. Just reply Y or N.
+        </p>
+
+        <div
+          className="mt-7 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 blur-in w-full"
+          style={{ animationDelay: '1.1s' }}
+        >
+          <button className="liquid-glass-strong rounded-full px-5 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
+            Start Free Trial <ArrowUpRight size={14} />
+          </button>
+          <button className="text-sm font-medium text-white flex items-center gap-2 whitespace-nowrap">
+            <span className="h-7 w-7 rounded-full liquid-glass-strong flex items-center justify-center shrink-0">
+              <Play size={10} className="text-white ml-0.5" />
+            </span>
+            See How It Works
+          </button>
+        </div>
+
+        <p
+          className="mt-4 text-xs text-white/50 font-body blur-in"
+          style={{ animationDelay: '1.3s' }}
+        >
+          No credit card required • Cancel anytime
+        </p>
+
+        {/* Stats */}
+        <div className="mt-auto pt-16 pb-8">
+          <div className="flex flex-col items-center gap-5">
+            <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">
+              By the numbers
+            </div>
+            <div className="flex flex-wrap items-end justify-center gap-8 sm:gap-10 md:gap-16">
+              {stats.map((s, i) => (
+                <div key={`stat-${i}`} className="text-center">
+                  <div className="text-3xl sm:text-4xl md:text-5xl font-heading italic text-white leading-none">{s.v}</div>
+                  <div className="mt-2 text-white/60 font-body font-light text-sm">{s.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function TryItHere() {
+  return (
+    <section className="relative overflow-hidden">
+      {/* Background gradient */}
+      <div
+        className="absolute inset-0 w-full h-full z-0"
+        style={{
+          background: `
+            radial-gradient(900px 500px at 60% 40%, rgba(60,100,180,0.25), transparent 60%),
+            radial-gradient(600px 400px at 20% 80%, rgba(40,70,140,0.2), transparent 60%),
+            linear-gradient(180deg, #050a18 0%, #080d20 100%)
+          `,
+        }}
+      />
+      <div className="absolute top-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to top, transparent, black)' }} />
+      <div className="absolute bottom-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to bottom, transparent, black)' }} />
+
+      <div className="relative z-10 flex flex-col items-center text-center px-5 sm:px-8 lg:px-16 py-16 md:py-28 min-h-[500px] md:min-h-[640px]">
+        <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">Live demo</div>
+        <h2 className="mt-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
+          <BlurText text="Try it right here." delay={80} />
+        </h2>
+        <p className="mt-5 text-white/60 font-body font-light text-sm md:text-base max-w-sm md:max-w-xl">
+          Tap &quot;Reply Y&quot; and see how the loop feels. This is the entire product — a thread, a question, a reply.
+        </p>
+        <div className="mt-10 w-full">
+          <WhatsAppDemo />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function TheProblem() {
+  const problems = [
+    '78% of people abandon habit apps after just 3 days.',
+    'Push notifications get ignored — 60% of users disable them.',
+    'Apps require opening, logging in, and navigating screens.',
+    'People pay $500/month for coaches who just… text them.',
+  ]
+  return (
+    <section className="px-5 sm:px-8 lg:px-16 py-16 md:py-28 max-w-7xl mx-auto">
+      <div className="flex flex-col items-center text-center mb-10 md:mb-16">
+        <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">The problem</div>
+        <h2 className="mt-5 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
+          <BlurText text="Habit apps don't actually work." delay={80} />
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        {problems.map((p, i) => (
+          <div
+            key={`prob-${i}`}
+            className="liquid-glass rounded-2xl p-5 md:p-6 flex items-start gap-4 blur-in-up"
+            style={{ animationDelay: `${i * 0.08}s` }}
+          >
+            <div className="text-2xl md:text-4xl font-heading italic text-white/40 leading-none shrink-0">
+              {String(i + 1).padStart(2, '0')}
+            </div>
+            <p className="text-white/80 font-body font-light text-sm md:text-base leading-relaxed">{p}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function HowItWorks() {
+  const steps = [
+    {
+      n: '01',
+      title: 'Set your habits.',
+      body: 'Choose from templates — workout, meditation, reading — or make your own. Pick a time.',
+    },
+    {
+      n: '02',
+      title: 'Receive an SMS.',
+      body: 'A text arrives at your scheduled time. "Did you meditate today? Reply Y or N."',
+    },
+    {
+      n: '03',
+      title: 'Track your streak.',
+      body: 'Just reply Y or N. We handle streaks, milestones, and weekly summaries automatically.',
+    },
+  ]
+  return (
+    <section id="how-it-works" className="px-5 sm:px-8 lg:px-16 py-16 md:py-28 max-w-7xl mx-auto">
+      <div className="flex flex-col items-center text-center mb-10 md:mb-16">
+        <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">How it works</div>
+        <h2 className="mt-5 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
+          <BlurText text="Three steps. Then it runs itself." delay={80} />
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        {steps.map((s, i) => (
+          <div
+            key={`step-${i}`}
+            className="liquid-glass rounded-2xl p-6 md:p-8 blur-in-up"
+            style={{ animationDelay: `${i * 0.12}s` }}
+          >
+            <div className="text-white/40 font-heading italic text-4xl md:text-5xl leading-none">{s.n}</div>
+            <h3 className="mt-5 md:mt-6 text-xl md:text-2xl lg:text-3xl font-heading italic text-white leading-tight">{s.title}</h3>
+            <p className="mt-3 text-white/60 font-body font-light text-sm leading-relaxed">{s.body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Features() {
+  const cards = [
+    { Icon: Zap, title: '5 Habit Templates', body: 'Workout, meditation, water, reading, sleep — or create your own in seconds.' },
+    { Icon: Clock, title: 'Custom Timing', body: 'Set reminders for any time. Morning habits at 6am, evening at 9pm. Your call.' },
+    { Icon: BarChart3, title: 'Web Dashboard', body: 'See progress, streaks, and weekly summaries in a clean, fast dashboard.' },
+    { Icon: Globe, title: 'Timezone Smart', body: 'Works worldwide. Reminders always arrive in your current local time.' },
+    { Icon: PartyPopper, title: 'Milestone Moments', body: 'Special messages at 7, 30, and 100 days. A real reason to keep going.' },
+    { Icon: Plane, title: 'Vacation Mode', body: 'Pause while you travel. Resume anytime. Nothing lost, nothing broken.' },
+  ]
+  return (
+    <section id="features" className="px-5 sm:px-8 lg:px-16 py-16 md:py-28 max-w-7xl mx-auto">
+      <div className="flex flex-col items-center text-center mb-10 md:mb-16">
+        <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">Everything you need</div>
+        <h2 className="mt-5 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
+          <BlurText text="Small surface. Deep craft." delay={80} />
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {cards.map(({ Icon: Ic, title, body }, i) => (
+          <div
+            key={`feat-${i}`}
+            className="liquid-glass rounded-2xl p-5 md:p-6 blur-in-up"
+            style={{ animationDelay: `${i * 0.08}s` }}
+          >
+            <div className="liquid-glass-strong rounded-full w-10 h-10 flex items-center justify-center">
+              <Ic size={18} className="text-white" />
+            </div>
+            <h4 className="mt-4 md:mt-5 text-xl md:text-2xl font-heading italic text-white leading-tight">{title}</h4>
+            <p className="mt-3 text-white/60 font-body font-light text-sm leading-relaxed">{body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Pricing() {
+  return (
+    <section id="pricing" className="px-5 sm:px-8 lg:px-16 py-16 md:py-28 max-w-7xl mx-auto">
+      <div className="flex flex-col items-center text-center mb-10 md:mb-12">
+        <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">Pricing</div>
+        <h2 className="mt-5 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
+          <BlurText text="Simple. Honest. Lifetime." delay={80} />
+        </h2>
+      </div>
+      <DynamicPricing />
+    </section>
+  )
+}
+
+function CtaFooter() {
+  return (
+    <section className="relative overflow-hidden">
+      {/* Background gradient */}
+      <div
+        className="absolute inset-0 w-full h-full z-0"
+        style={{
+          background: `
+            radial-gradient(800px 500px at 50% 30%, rgba(60,90,160,0.2), transparent 60%),
+            linear-gradient(180deg, #050a18 0%, #000 100%)
+          `,
+        }}
+      />
+      <div className="absolute top-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to top, transparent, black)' }} />
+      <div className="absolute bottom-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to bottom, transparent, black)' }} />
+
+      <div className="relative z-10 px-5 sm:px-8 lg:px-16 pt-20 md:pt-40 pb-10 max-w-7xl mx-auto">
+        <div className="flex flex-col items-center text-center">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading italic text-white leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
+            <BlurText text="Ready to build better habits?" delay={80} />
+          </h2>
+          <p className="mt-6 text-white/70 font-body font-light text-sm md:text-base max-w-sm md:max-w-xl">
+            Join the first 100 users and lock in a lifetime discount. 7-day free trial. No credit card required.
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            <button className="liquid-glass-strong rounded-full px-6 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
+              Start Free Trial <ArrowUpRight size={14} />
+            </button>
+            <button className="bg-white text-black rounded-full px-6 py-3 text-sm font-medium whitespace-nowrap w-full sm:w-auto">
+              View Pricing
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-20 md:mt-36 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="text-white/40 text-xs font-body">© 2026 HabitSMS. All rights reserved.</div>
+          <div className="flex items-center gap-6">
+            {['Privacy', 'Terms', 'Contact'].map((l) => (
+              <a key={l} href="#" className="text-white/40 text-xs font-body hover:text-white/70">{l}</a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ----------------- Page root ----------------- */
+
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex justify-between items-center">
-          <div className="text-2xl font-bold text-blue-600">HabitSMS</div>
-          <div className="space-x-4">
-            <a href="#pricing" className="text-gray-600 hover:text-gray-900">Pricing</a>
-            <a href="#how-it-works" className="text-gray-600 hover:text-gray-900">How It Works</a>
-            <button className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
-              Sign Up
-            </button>
-          </div>
-        </nav>
-      </header>
-
-      {/* Hero Section */}
-      <main className="container mx-auto px-4 py-16">
-        <div className="text-center max-w-5xl mx-auto mb-20">
-          <div className="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold mb-6">
-            🎉 First 100 users get $4.99/month LIFETIME
-          </div>
-          <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Build Habits with<br />
-            <span className="text-blue-600">98% Success Rate</span>
-          </h1>
-          <p className="text-2xl text-gray-600 mb-8">
-            Get SMS reminders that actually work. No app to install, no notifications to ignore.
-          </p>
-          <div className="flex justify-center gap-4 mb-8">
-            <button className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition shadow-lg">
-              Start Free Trial
-            </button>
-            <button className="bg-white text-gray-700 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-50 transition border-2 border-gray-200">
-              See How It Works
-            </button>
-          </div>
-          <p className="text-sm text-gray-500">No credit card required • Cancel anytime</p>
-
-          {/* Social Proof */}
-          <div className="mt-12 flex justify-center items-center gap-8 text-gray-600">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900">98%</div>
-              <div className="text-sm">Open Rate</div>
-            </div>
-            <div className="h-12 w-px bg-gray-300"></div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900">3min</div>
-              <div className="text-sm">Avg. Response Time</div>
-            </div>
-            <div className="h-12 w-px bg-gray-300"></div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900">78%</div>
-              <div className="text-sm">Less Than Apps</div>
-            </div>
-          </div>
+    <div className="bg-black text-white">
+      <div className="relative z-10">
+        <Navbar />
+        <Hero />
+        <div className="bg-black">
+          <TryItHere />
+          <TheProblem />
+          <HowItWorks />
+          <Features />
+          <Pricing />
+          <CtaFooter />
         </div>
-
-        {/* The Problem */}
-        <section className="max-w-4xl mx-auto mb-20">
-          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">The Problem with Habit Apps</h2>
-            <div className="space-y-3 text-lg text-gray-700">
-              <div className="flex items-start gap-3">
-                <span className="text-red-500 text-xl">❌</span>
-                <p>78% of people abandon habit apps after just 3 days</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-red-500 text-xl">❌</span>
-                <p>Push notifications get ignored (60% of users disable them)</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-red-500 text-xl">❌</span>
-                <p>Apps require opening, logging in, and navigating screens</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-red-500 text-xl">❌</span>
-                <p>People pay $500/month for coaches who just... text them</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* How It Works */}
-        <section id="how-it-works" className="max-w-5xl mx-auto mb-20">
-          <h2 className="text-4xl font-bold text-center text-gray-900 mb-12">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-xl p-8 shadow-lg border-2 border-gray-100">
-              <div className="text-5xl mb-4">📝</div>
-              <div className="text-blue-600 font-semibold mb-2">Step 1</div>
-              <h3 className="text-xl font-bold mb-3">Set Your Habits</h3>
-              <p className="text-gray-600">Choose from templates (workout, meditation, reading) or create custom habits. Set your reminder time.</p>
-            </div>
-            <div className="bg-white rounded-xl p-8 shadow-lg border-2 border-gray-100">
-              <div className="text-5xl mb-4">💬</div>
-              <div className="text-blue-600 font-semibold mb-2">Step 2</div>
-              <h3 className="text-xl font-bold mb-3">Receive SMS</h3>
-              <p className="text-gray-600">Get a text at your scheduled time. &quot;Did you meditate today? Reply Y or N&quot;</p>
-            </div>
-            <div className="bg-white rounded-xl p-8 shadow-lg border-2 border-gray-100">
-              <div className="text-5xl mb-4">🔥</div>
-              <div className="text-blue-600 font-semibold mb-2">Step 3</div>
-              <h3 className="text-xl font-bold mb-3">Track Streaks</h3>
-              <p className="text-gray-600">Just reply &quot;Y&quot; or &quot;N&quot;. We track your streaks and celebrate milestones automatically.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* SMS Example */}
-        <section className="max-w-4xl mx-auto mb-20">
-          <div className="bg-gray-900 rounded-2xl p-8 shadow-2xl">
-            <div className="bg-gray-800 rounded-lg p-6 mb-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                  H
-                </div>
-                <div>
-                  <div className="text-white font-semibold">HabitSMS</div>
-                  <div className="text-gray-400 text-sm">Today at 7:00 AM</div>
-                </div>
-              </div>
-              <div className="bg-blue-600 text-white rounded-lg rounded-tl-none p-4 mb-3 inline-block">
-                Did you meditate today? Reply with:<br />
-                Y - Yes, I did it!<br />
-                N - Not today<br />
-                STATS - View your streak
-              </div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-6">
-              <div className="flex items-center gap-3 mb-4 justify-end">
-                <div>
-                  <div className="text-white font-semibold text-right">You</div>
-                  <div className="text-gray-400 text-sm text-right">Today at 7:02 AM</div>
-                </div>
-                <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                  Y
-                </div>
-              </div>
-              <div className="bg-green-600 text-white rounded-lg rounded-tr-none p-4 inline-block float-right">
-                Y
-              </div>
-            </div>
-            <div className="clear-both bg-gray-800 rounded-lg p-6 mt-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                  H
-                </div>
-                <div>
-                  <div className="text-white font-semibold">HabitSMS</div>
-                  <div className="text-gray-400 text-sm">Today at 7:02 AM</div>
-                </div>
-              </div>
-              <div className="bg-blue-600 text-white rounded-lg rounded-tl-none p-4 inline-block">
-                🔥 Great job! Meditation logged!<br />
-                Current streak: 7 days<br />
-                Keep it up! 💪
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features */}
-        <section className="max-w-5xl mx-auto mb-20">
-          <h2 className="text-4xl font-bold text-center text-gray-900 mb-12">Everything You Need</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-xl p-6 border-2 border-gray-100">
-              <div className="text-3xl mb-3">💪</div>
-              <h3 className="text-xl font-bold mb-2">5 Habit Templates</h3>
-              <p className="text-gray-600">Workout, meditation, water intake, reading, sleep tracking - or create your own.</p>
-            </div>
-            <div className="bg-white rounded-xl p-6 border-2 border-gray-100">
-              <div className="text-3xl mb-3">🕐</div>
-              <h3 className="text-xl font-bold mb-2">Custom Timing</h3>
-              <p className="text-gray-600">Set reminders for any time. Morning habits at 6am, evening habits at 9pm.</p>
-            </div>
-            <div className="bg-white rounded-xl p-6 border-2 border-gray-100">
-              <div className="text-3xl mb-3">📊</div>
-              <h3 className="text-xl font-bold mb-2">Web Dashboard</h3>
-              <p className="text-gray-600">View your progress, streaks, and weekly summaries in a beautiful dashboard.</p>
-            </div>
-            <div className="bg-white rounded-xl p-6 border-2 border-gray-100">
-              <div className="text-3xl mb-3">🌍</div>
-              <h3 className="text-xl font-bold mb-2">Timezone Smart</h3>
-              <p className="text-gray-600">Works worldwide. Reminders arrive in your local timezone.</p>
-            </div>
-            <div className="bg-white rounded-xl p-6 border-2 border-gray-100">
-              <div className="text-3xl mb-3">🎉</div>
-              <h3 className="text-xl font-bold mb-2">Milestone Celebrations</h3>
-              <p className="text-gray-600">Get special messages at 7, 30, 100 day streaks. Feel the motivation!</p>
-            </div>
-            <div className="bg-white rounded-xl p-6 border-2 border-gray-100">
-              <div className="text-3xl mb-3">✈️</div>
-              <h3 className="text-xl font-bold mb-2">Vacation Mode</h3>
-              <p className="text-gray-600">Pause your habits when traveling. Resume anytime without losing progress.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing */}
-        <section id="pricing" className="max-w-5xl mx-auto mb-20">
-          <h2 className="text-4xl font-bold text-center text-gray-900 mb-4">Simple, Honest Pricing</h2>
-          <p className="text-xl text-gray-600 text-center mb-12">Less than a coffee. More effective than a $500/month coach.</p>
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Starter */}
-            <div className="bg-white rounded-xl p-8 border-2 border-gray-200">
-              <h3 className="text-2xl font-bold mb-2">Starter</h3>
-              <div className="text-4xl font-bold mb-4">
-                $7<span className="text-lg font-normal text-gray-600">/month</span>
-              </div>
-              <p className="text-gray-600 mb-6">Perfect for beginners</p>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>3 active habits</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>Daily SMS reminders</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>Streak tracking</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>Web dashboard</span>
-                </li>
-              </ul>
-              <button className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition">
-                Get Started
-              </button>
-            </div>
-
-            {/* Pro (Featured) */}
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl p-8 text-white transform scale-105 shadow-2xl">
-              <div className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-bold inline-block mb-3">
-                MOST POPULAR
-              </div>
-              <h3 className="text-2xl font-bold mb-2">Pro</h3>
-              <div className="text-4xl font-bold mb-4">
-                $12<span className="text-lg font-normal opacity-80">/month</span>
-              </div>
-              <p className="opacity-90 mb-6">For serious habit builders</p>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2">
-                  <span className="text-green-300">✓</span>
-                  <span>Unlimited habits</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-300">✓</span>
-                  <span>All reminders & tracking</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-300">✓</span>
-                  <span>Weekly summaries</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-300">✓</span>
-                  <span>Priority support</span>
-                </li>
-              </ul>
-              <button className="w-full bg-white text-blue-600 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
-                Start Free Trial
-              </button>
-              <p className="text-center text-sm mt-3 opacity-80">🔥 First 100: $4.99/month forever</p>
-            </div>
-
-            {/* Team */}
-            <div className="bg-white rounded-xl p-8 border-2 border-gray-200">
-              <h3 className="text-2xl font-bold mb-2">Team</h3>
-              <div className="text-4xl font-bold mb-4">
-                $39<span className="text-lg font-normal text-gray-600">/month</span>
-              </div>
-              <p className="text-gray-600 mb-6">For families & groups</p>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>Everything in Pro</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>5 team members</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>Shared dashboard</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>Group challenges</span>
-                </li>
-              </ul>
-              <button className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition">
-                Get Started
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
-            <h2 className="text-4xl font-bold mb-4">Ready to Build Better Habits?</h2>
-            <p className="text-xl mb-8 opacity-90">Join the first 100 users and get lifetime discount.</p>
-            <button className="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition shadow-lg">
-              Start Your Free Trial
-            </button>
-            <p className="text-sm mt-4 opacity-80">No credit card required • 7-day free trial</p>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 mt-20">
-        <div className="container mx-auto px-4 text-center">
-          <div className="text-2xl font-bold mb-4">HabitSMS</div>
-          <p className="text-gray-400 mb-6">Build habits that stick. One text at a time.</p>
-          <div className="space-x-6 text-sm text-gray-400">
-            <a href="#" className="hover:text-white">Privacy</a>
-            <a href="#" className="hover:text-white">Terms</a>
-            <a href="#" className="hover:text-white">Contact</a>
-          </div>
-          <p className="text-gray-500 text-sm mt-6">© 2025 HabitSMS. All rights reserved.</p>
-        </div>
-      </footer>
+      </div>
     </div>
-  );
+  )
 }
