@@ -135,7 +135,7 @@ export default function DynamicPricing() {
           return (
             <div
               key={plan.name}
-              className="relative rounded-2xl md:-my-4"
+              className="relative rounded-2xl md:-my-4 shiny-card"
               style={{
                 padding: '1.5px',
                 background: 'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(180,180,180,0.4) 20%, rgba(240,240,240,0.6) 35%, rgba(100,100,100,0.35) 50%, rgba(200,200,200,0.55) 65%, rgba(150,150,150,0.4) 80%, rgba(230,230,230,0.6) 100%)',

@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
-import { ArrowUpRight, Play, Zap, Clock, BarChart3, Globe, PartyPopper, Plane, X, Menu } from 'lucide-react'
+import { ArrowUpRight, Zap, Clock, BarChart3, Globe, PartyPopper, Plane, X, Menu } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import DynamicPricing from '@/components/DynamicPricing'
 
 /* ----------------- Primitives ----------------- */
@@ -204,19 +206,22 @@ function WhatsAppDemo() {
 
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const router = useRouter()
   const links = ['How It Works', 'Features', 'Pricing']
 
   return (
     <nav className="fixed top-4 left-0 right-0 z-50 px-5 sm:px-8 lg:px-16 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full liquid-glass-strong flex items-center justify-center shrink-0">
-            <div
-              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full"
-              style={{ background: 'radial-gradient(circle at 30% 30%, #fff, #cfd8ea 60%, #7a8cb8)' }}
-            />
-          </div>
-          <span className="hidden sm:block font-heading italic text-2xl tracking-tight">HabitSMS</span>
+          <Link href="/">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full liquid-glass-strong flex items-center justify-center shrink-0 cursor-pointer">
+              <div
+                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full"
+                style={{ background: 'radial-gradient(circle at 30% 30%, #fff, #cfd8ea 60%, #7a8cb8)' }}
+              />
+            </div>
+          </Link>
+          <Link href="/" className="hidden sm:block font-heading italic text-2xl tracking-tight cursor-pointer">HabitSMS</Link>
         </div>
 
         {/* Desktop nav */}
@@ -230,7 +235,7 @@ function Navbar() {
               {l}
             </a>
           ))}
-          <button className="ml-1 bg-white text-black rounded-full px-3.5 py-1.5 text-sm font-medium flex items-center gap-1 hover:bg-white/90 transition whitespace-nowrap">
+          <button onClick={() => router.push('/login')} className="ml-1 bg-white text-black rounded-full px-3.5 py-1.5 text-sm font-medium flex items-center gap-1 hover:bg-white/90 transition whitespace-nowrap">
             Sign Up <ArrowUpRight size={14} />
           </button>
         </div>
@@ -258,7 +263,7 @@ function Navbar() {
               {l}
             </a>
           ))}
-          <button className="mt-2 bg-white text-black rounded-full px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-1 hover:bg-white/90 transition">
+          <button onClick={() => router.push('/login')} className="mt-2 bg-white text-black rounded-full px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-1 hover:bg-white/90 transition">
             Sign Up <ArrowUpRight size={14} />
           </button>
         </div>
@@ -268,6 +273,7 @@ function Navbar() {
 }
 
 function Hero() {
+  const router = useRouter()
   const stats = [
     { v: '98%', l: 'Open Rate' },
     { v: 'Instant', l: 'Auto-Response' },
@@ -322,17 +328,11 @@ function Hero() {
         </p>
 
         <div
-          className="mt-7 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 blur-in w-full"
+          className="mt-7 sm:mt-8 flex items-center justify-center gap-3 sm:gap-5 blur-in w-full"
           style={{ animationDelay: '1.1s' }}
         >
-          <button className="liquid-glass-strong rounded-full px-5 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
+          <button onClick={() => router.push('/login')} className="liquid-glass-strong rounded-full px-5 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
             Start Free Trial <ArrowUpRight size={14} />
-          </button>
-          <button className="text-sm font-medium text-white flex items-center gap-2 whitespace-nowrap">
-            <span className="h-7 w-7 rounded-full liquid-glass-strong flex items-center justify-center shrink-0">
-              <Play size={10} className="text-white ml-0.5" />
-            </span>
-            See How It Works
           </button>
         </div>
 
@@ -344,7 +344,7 @@ function Hero() {
         </p>
 
         {/* Stats */}
-        <div className="mt-auto pt-16 pb-8">
+        <div className="mt-auto pt-10 pb-6">
           <div className="flex flex-col items-center gap-5">
             <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">
               By the numbers
@@ -381,8 +381,8 @@ function TryItHere() {
       <div className="absolute top-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to top, transparent, black)' }} />
       <div className="absolute bottom-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to bottom, transparent, black)' }} />
 
-      <div className="relative z-10 flex flex-col items-center text-center px-5 sm:px-8 lg:px-16 py-16 md:py-28 min-h-[500px] md:min-h-[640px]">
-        <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">Live demo</div>
+      <div className="relative z-10 flex flex-col items-center text-center px-5 sm:px-8 lg:px-16 py-12 md:py-16 min-h-[400px] md:min-h-[500px]">
+        <div> </div>
         <h2 className="mt-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
           <BlurText text="Try it right here." delay={80} />
         </h2>
@@ -524,6 +524,7 @@ function Pricing() {
 }
 
 function CtaFooter() {
+  const router = useRouter()
   return (
     <section className="relative overflow-hidden">
       {/* Background gradient */}
@@ -548,10 +549,10 @@ function CtaFooter() {
             Join the first 100 users and lock in a lifetime discount. 7-day free trial. No credit card required.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
-            <button className="liquid-glass-strong rounded-full px-6 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
+            <button onClick={() => router.push('/login')} className="liquid-glass-strong rounded-full px-6 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
               Start Free Trial <ArrowUpRight size={14} />
             </button>
-            <button className="bg-white text-black rounded-full px-6 py-3 text-sm font-medium whitespace-nowrap w-full sm:w-auto">
+            <button onClick={() => document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'})} className="bg-white text-black rounded-full px-6 py-3 text-sm font-medium whitespace-nowrap w-full sm:w-auto">
               View Pricing
             </button>
           </div>
