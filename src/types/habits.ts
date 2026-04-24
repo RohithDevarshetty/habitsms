@@ -54,6 +54,15 @@ export const HABIT_TEMPLATES: HabitTemplate[] = [
     default_reminder_time: '22:00',
     icon: '😴',
   },
+  {
+    template_type: 'custom',
+    name: 'Custom Habit',
+    description: 'Create your own habit',
+    response_type: 'boolean',
+    response_unit: undefined,
+    default_reminder_time: '09:00',
+    icon: '✨',
+  },
 ]
 
 export interface Habit {

@@ -51,6 +51,8 @@ export default function OnboardingPage() {
   const [selected, setSelected] = useState<SelectedHabit[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showCustomModal, setShowCustomModal] = useState(false)
+  const [customHabit, setCustomHabit] = useState({ name: '', response_type: 'boolean', unit: '', message: '' })
   const router = useRouter()
   const supabase = createClient()
 
@@ -62,6 +64,10 @@ export default function OnboardingPage() {
   }, [])
 
   function toggleTemplate(tpl: typeof HABIT_TEMPLATES[0]) {
+    if (tpl.template_type === 'custom') {
+      setShowCustomModal(true)
+      return
+    }
     setSelected(prev => {
       const exists = prev.find(s => s.template_type === tpl.template_type)
       if (exists) return prev.filter(s => s.template_type !== tpl.template_type)
@@ -76,6 +82,26 @@ export default function OnboardingPage() {
         reminder_time: tpl.default_reminder_time,
       }]
     })
+  }
+
+  function addCustomHabit() {
+    if (!customHabit.name.trim()) return
+    const unit = customHabit.response_type === 'number' ? customHabit.unit : undefined
+    setSelected(prev => {
+      if (prev.length >= 3) return prev
+      return [...prev, {
+        template_type: 'custom',
+        name: customHabit.name,
+        description: customHabit.message || `Custom habit tracked via SMS`,
+        response_type: customHabit.response_type,
+        response_unit: unit,
+        icon: '✨',
+        reminder_time: '09:00',
+        custom_reminder_message: customHabit.message || undefined,
+      }]
+    })
+    setShowCustomModal(false)
+    setCustomHabit({ name: '', response_type: 'boolean', unit: '', message: '' })
   }
 
   function updateReminderTime(template_type: string, time: string) {
@@ -341,6 +367,95 @@ export default function OnboardingPage() {
           )}
 
         </div>
+
+        {/* Custom Habit Modal */}
+        {showCustomModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
+            <div className="absolute inset-0 bg-black/70" onClick={() => setShowCustomModal(false)} />
+            <div className="relative z-10 w-full max-w-md liquid-glass rounded-2xl p-6 sm:p-8">
+              <h3 className="text-xl font-heading italic text-white mb-5">Create Custom Habit</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-body text-white/60 mb-2">Habit name</label>
+                  <input
+                    type="text"
+                    value={customHabit.name}
+                    onChange={e => setCustomHabit({ ...customHabit, name: e.target.value })}
+                    placeholder="e.g., Take vitamins"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body placeholder:text-white/25 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-body text-white/60 mb-2">How do you want to respond?</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCustomHabit({ ...customHabit, response_type: 'boolean' })}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-body transition ${
+                        customHabit.response_type === 'boolean' ? 'bg-white text-black' : 'liquid-glass text-white/60'
+                      }`}
+                    >
+                      Yes/No
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCustomHabit({ ...customHabit, response_type: 'number' })}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-body transition ${
+                        customHabit.response_type === 'number' ? 'bg-white text-black' : 'liquid-glass text-white/60'
+                      }`}
+                    >
+                      Number
+                    </button>
+                  </div>
+                </div>
+
+                {customHabit.response_type === 'number' && (
+                  <div>
+                    <label className="block text-sm font-body text-white/60 mb-2">Unit (optional)</label>
+                    <input
+                      type="text"
+                      value={customHabit.unit}
+                      onChange={e => setCustomHabit({ ...customHabit, unit: e.target.value })}
+                      placeholder="e.g., glasses, pages, minutes"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body placeholder:text-white/25 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-body text-white/60 mb-2">Custom reminder message (optional)</label>
+                  <input
+                    type="text"
+                    value={customHabit.message}
+                    onChange={e => setCustomHabit({ ...customHabit, message: e.target.value })}
+                    placeholder="e.g., Did you take your vitamins?"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body placeholder:text-white/25 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(false)}
+                  className="flex-1 liquid-glass rounded-full py-3 text-sm font-body text-white/60 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={addCustomHabit}
+                  disabled={!customHabit.name.trim()}
+                  className="flex-1 bg-white text-black rounded-full py-3 text-sm font-body font-semibold hover:bg-white/90 transition disabled:opacity-50"
+                >
+                  Add Habit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

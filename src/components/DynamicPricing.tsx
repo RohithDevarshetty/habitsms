@@ -39,7 +39,7 @@ function useCountry() {
   const [country, setCountry] = useState<string>('IN')
 
   useEffect(() => {
-    fetch('https://ipwho.is/')
+    fetch('https://ipapi.co/json/')
       .then(res => res.json())
       .then(data => {
         const code = data?.country_code || 'IN'

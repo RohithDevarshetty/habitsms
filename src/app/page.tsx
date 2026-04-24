@@ -1,10 +1,35 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { ArrowUpRight, Zap, Clock, BarChart3, Globe, PartyPopper, Plane, X, Menu } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DynamicPricing from '@/components/DynamicPricing'
+import WhatsAppGifChat from './test'
+import IMessageChat from './imessage'
+
+const REGION_PRICING: Record<string, { symbol: string; price: string }> = {
+  IN: { symbol: '₹', price: '199/mo' },
+  US: { symbol: '$', price: '4.99/mo' },
+  default: { symbol: '$', price: '4.99/mo' },
+}
+
+function useRegionPricing() {
+  const [pricing, setPricing] = useState(REGION_PRICING.default)
+
+  useEffect(() => {
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        const code = data?.country_code
+        if (code && REGION_PRICING[code]) {
+          setPricing(REGION_PRICING[code])
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  return pricing
+}
 
 /* ----------------- Primitives ----------------- */
 
@@ -44,169 +69,10 @@ function BlurText({
   )
 }
 
-/* ----------------- Chat demo ----------------- */
-
-interface ChatMessage {
-  id: number
-  from: 'user' | 'them'
-  text: string
-  time: string
-  type: 'sms' | 'whatsapp'
-}
-
-function WhatsAppDemo() {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [channel, setChannel] = useState<'sms' | 'whatsapp'>('sms')
-  const [isTyping, setIsTyping] = useState(false)
-  const [demoPhase, setDemoPhase] = useState(0)
-  const chatRef = useRef<HTMLDivElement>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
-
-  const DEMO_MESSAGES: { them: string; user: string }[] = [
-    {
-      them: 'Did you workout today?\nReply with:\nY - Yes, I did it!\nN - Not today',
-      user: 'Y',
-    },
-    {
-      them: 'Great job! Workout logged!\nCurrent streak: 7 days\nKeep it up!',
-      user: '',
-    },
-  ]
-
-  useEffect(() => {
-    if (demoPhase < DEMO_MESSAGES.length) {
-      const currentDemo = DEMO_MESSAGES[demoPhase]
-      setIsTyping(true)
-      const timer = setTimeout(() => {
-        setIsTyping(false)
-        const newMsg: ChatMessage = {
-          id: Date.now(),
-          from: 'them',
-          text: currentDemo.them,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: channel,
-        }
-        setMessages((prev) => [...prev, newMsg])
-        audioRef.current?.play().catch(() => {})
-      }, 1500)
-      return () => clearTimeout(timer)
-    }
-  }, [demoPhase, channel])
-
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
-  }, [messages])
-
-  const handleReply = () => {
-    if (demoPhase >= DEMO_MESSAGES.length) return
-    const currentDemo = DEMO_MESSAGES[demoPhase]
-    const userMsg: ChatMessage = {
-      id: Date.now(),
-      from: 'user',
-      text: currentDemo.user,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: channel,
-    }
-    setMessages((prev) => [...prev, userMsg])
-    setDemoPhase((prev) => prev + 1)
-  }
-
-  const resetDemo = () => { setMessages([]); setDemoPhase(0) }
-  const setChannelAndReset = (ch: 'sms' | 'whatsapp') => { setChannel(ch); setMessages([]); setDemoPhase(0) }
-
-  return (
-    <div className="w-full max-w-sm mx-auto">
-      <audio
-        ref={audioRef}
-        src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleRkAQZjf6oNqFQM="
-        preload="auto"
-      />
-      <div className="liquid-glass rounded-3xl overflow-hidden">
-        <div className="px-4 py-3 flex items-center justify-between border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full liquid-glass-strong flex items-center justify-center text-white font-heading italic text-lg">H</div>
-            <div>
-              <div className="text-white font-body font-medium text-sm">HabitSMS</div>
-              <div className="text-white/50 text-xs font-body">{channel === 'whatsapp' ? 'WhatsApp' : 'SMS Demo'}</div>
-            </div>
-          </div>
-          <div className="flex gap-1">
-            {(['sms', 'whatsapp'] as const).map((ch) => (
-              <button
-                key={ch}
-                onClick={() => setChannelAndReset(ch)}
-                className={`px-2.5 py-1 text-xs rounded-full font-medium transition ${channel === ch ? 'bg-white text-black' : 'liquid-glass text-white'}`}
-              >
-                {ch === 'sms' ? 'SMS' : 'WA'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div ref={chatRef} className="h-56 sm:h-64 overflow-y-auto p-3 sm:p-4">
-          {messages.length === 0 && (
-            <div className="text-center py-6">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full liquid-glass-strong flex items-center justify-center text-white font-heading italic text-xl">!</div>
-              <p className="text-sm text-white/60 font-body font-light">Tap &quot;Reply Y&quot; below to try it</p>
-            </div>
-          )}
-          {messages.map((msg) => (
-            <div key={msg.id} className={`mb-3 ${msg.from === 'them' ? 'slide-left' : 'slide-right'}`}>
-              {msg.from === 'them' ? (
-                <div className="flex items-end gap-2">
-                  <div className="w-7 h-7 rounded-full liquid-glass-strong flex items-center justify-center text-xs text-white font-medium shrink-0">H</div>
-                  <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tl-md text-sm liquid-glass text-white">
-                    <p className="whitespace-pre-line leading-relaxed font-body font-light">{msg.text}</p>
-                    <div className="text-[10px] text-white/40 mt-1 text-right font-body">{msg.time}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-end gap-2 justify-end">
-                  <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tr-md text-sm bg-white text-black">
-                    <p className="leading-relaxed font-body font-medium">{msg.text}</p>
-                    <div className="text-[10px] text-black/50 mt-1 text-right font-body">{msg.time}</div>
-                  </div>
-                  <div className="w-7 h-7 rounded-full liquid-glass-strong flex items-center justify-center text-xs text-white font-medium shrink-0">U</div>
-                </div>
-              )}
-            </div>
-          ))}
-          {isTyping && (
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-full liquid-glass-strong flex items-center justify-center text-xs text-white font-medium">H</div>
-              <div className="liquid-glass rounded-2xl rounded-tl-md px-4 py-3">
-                <div className="flex gap-1">
-                  {[0, 150, 300].map((d) => (
-                    <span key={d} className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="px-3 py-3 sm:px-4 flex gap-2 border-t border-white/10">
-          <button
-            onClick={handleReply}
-            disabled={demoPhase >= DEMO_MESSAGES.length || isTyping}
-            className={`flex-1 py-2.5 rounded-full font-medium text-sm transition whitespace-nowrap ${demoPhase >= DEMO_MESSAGES.length ? 'bg-white text-black' : 'liquid-glass-strong text-white'} disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {demoPhase >= DEMO_MESSAGES.length ? 'Great!' : 'Reply Y'}
-          </button>
-          <button onClick={resetDemo} className="px-4 py-2.5 rounded-full font-medium text-sm liquid-glass text-white whitespace-nowrap">
-            Reset
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 /* ----------------- Page sections ----------------- */
 
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const router = useRouter()
   const links = ['How It Works', 'Features', 'Pricing']
 
   return (
@@ -235,9 +101,9 @@ function Navbar() {
               {l}
             </a>
           ))}
-          <button onClick={() => router.push('/login')} className="ml-1 bg-white text-black rounded-full px-3.5 py-1.5 text-sm font-medium flex items-center gap-1 hover:bg-white/90 transition whitespace-nowrap">
+          <Link href="/login" className="ml-1 bg-white text-black rounded-full px-3.5 py-1.5 text-sm font-medium flex items-center gap-1 hover:bg-white/90 transition whitespace-nowrap">
             Sign Up <ArrowUpRight size={14} />
-          </button>
+          </Link>
         </div>
 
         {/* Mobile menu button */}
@@ -263,9 +129,9 @@ function Navbar() {
               {l}
             </a>
           ))}
-          <button onClick={() => router.push('/login')} className="mt-2 bg-white text-black rounded-full px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-1 hover:bg-white/90 transition">
+          <Link href="/login" className="mt-2 bg-white text-black rounded-full px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-1 hover:bg-white/90 transition">
             Sign Up <ArrowUpRight size={14} />
-          </button>
+          </Link>
         </div>
       )}
     </nav>
@@ -273,7 +139,7 @@ function Navbar() {
 }
 
 function Hero() {
-  const router = useRouter()
+  const { symbol, price } = useRegionPricing()
   const stats = [
     { v: '98%', l: 'Open Rate' },
     { v: 'Instant', l: 'Auto-Response' },
@@ -309,7 +175,7 @@ function Hero() {
         >
           <span className="bg-white text-black rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap">Limited</span>
           <span className="text-xs md:text-sm text-white/90 font-body pr-3 whitespace-nowrap">
-            First 100 users get $4.99/mo lifetime.
+            First 100 users get {symbol}{price} lifetime.
           </span>
         </div>
 
@@ -331,9 +197,9 @@ function Hero() {
           className="mt-7 sm:mt-8 flex items-center justify-center gap-3 sm:gap-5 blur-in w-full"
           style={{ animationDelay: '1.1s' }}
         >
-          <button onClick={() => router.push('/login')} className="liquid-glass-strong rounded-full px-5 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
+          <Link href="/login" className="liquid-glass-strong rounded-full px-5 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
             Start Free Trial <ArrowUpRight size={14} />
-          </button>
+          </Link>
         </div>
 
         <p
@@ -364,39 +230,6 @@ function Hero() {
   )
 }
 
-function TryItHere() {
-  return (
-    <section className="relative overflow-hidden">
-      {/* Background gradient */}
-      <div
-        className="absolute inset-0 w-full h-full z-0"
-        style={{
-          background: `
-            radial-gradient(900px 500px at 60% 40%, rgba(60,100,180,0.25), transparent 60%),
-            radial-gradient(600px 400px at 20% 80%, rgba(40,70,140,0.2), transparent 60%),
-            linear-gradient(180deg, #050a18 0%, #080d20 100%)
-          `,
-        }}
-      />
-      <div className="absolute top-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to top, transparent, black)' }} />
-      <div className="absolute bottom-0 left-0 right-0 z-[1] pointer-events-none" style={{ height: 200, background: 'linear-gradient(to bottom, transparent, black)' }} />
-
-      <div className="relative z-10 flex flex-col items-center text-center px-5 sm:px-8 lg:px-16 py-12 md:py-16 min-h-[400px] md:min-h-[500px]">
-        <div> </div>
-        <h2 className="mt-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
-          <BlurText text="Try it right here." delay={80} />
-        </h2>
-        <p className="mt-5 text-white/60 font-body font-light text-sm md:text-base max-w-sm md:max-w-xl">
-          Tap &quot;Reply Y&quot; and see how the loop feels. This is the entire product — a thread, a question, a reply.
-        </p>
-        <div className="mt-10 w-full">
-          <WhatsAppDemo />
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function TheProblem() {
   const problems = [
     '78% of people abandon habit apps after just 3 days.',
@@ -405,7 +238,26 @@ function TheProblem() {
     'People pay $500/month for coaches who just… text them.',
   ]
   return (
-    <section className="px-5 sm:px-8 lg:px-16 py-16 md:py-28 max-w-7xl mx-auto">
+    <section className="px-5 sm:px-8 lg:px-16 py-16 md:py-20 max-w-7xl mx-auto">
+
+      {/* Chat demos side by side */}
+      <div className="flex flex-col sm:flex-row items-start justify-center gap-6 sm:gap-8 mb-12">
+        <div className="w-full sm:w-auto">
+          <div className="text-center text-white/60 text-sm mb-3">Message</div>
+          <div className="w-full max-w-[280px] sm:max-w-none sm:w-[300px] mx-auto">
+            <IMessageChat isDemo />
+          </div>
+        </div>
+
+        <div className="w-full sm:w-auto">
+          <div className="text-center text-white/60 text-sm mb-3">WhatsApp</div>
+          <div className="w-full max-w-[280px] sm:max-w-none sm:w-[300px] mx-auto">
+            <WhatsAppGifChat isDemo />
+          </div>
+        </div>
+        
+      </div>
+
       <div className="flex flex-col items-center text-center mb-10 md:mb-16">
         <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white font-body">The problem</div>
         <h2 className="mt-5 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading italic text-white tracking-tight leading-[0.9] max-w-xs sm:max-w-2xl md:max-w-3xl">
@@ -524,7 +376,6 @@ function Pricing() {
 }
 
 function CtaFooter() {
-  const router = useRouter()
   return (
     <section className="relative overflow-hidden">
       {/* Background gradient */}
@@ -549,9 +400,9 @@ function CtaFooter() {
             Join the first 100 users and lock in a lifetime discount. 7-day free trial. No credit card required.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
-            <button onClick={() => router.push('/login')} className="liquid-glass-strong rounded-full px-6 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
+            <Link href="/login" className="liquid-glass-strong rounded-full px-6 py-3 text-sm font-medium text-white flex items-center gap-1.5 whitespace-nowrap w-full sm:w-auto justify-center">
               Start Free Trial <ArrowUpRight size={14} />
-            </button>
+            </Link>
             <button onClick={() => document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'})} className="bg-white text-black rounded-full px-6 py-3 text-sm font-medium whitespace-nowrap w-full sm:w-auto">
               View Pricing
             </button>
@@ -571,6 +422,8 @@ function CtaFooter() {
   )
 }
 
+
+
 /* ----------------- Page root ----------------- */
 
 export default function Home() {
@@ -580,11 +433,10 @@ export default function Home() {
         <Navbar />
         <Hero />
         <div className="bg-black">
-          <TryItHere />
           <TheProblem />
           <HowItWorks />
-          <Features />
           <Pricing />
+          <Features />
           <CtaFooter />
         </div>
       </div>

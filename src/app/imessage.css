@@ -1,0 +1,34 @@
+.chat-toggle-imessage {
+  position: fixed;
+  bottom: 20px;
+  right: 90px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #007AFF, #5856D6);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.4);
+  z-index: 101;
+}
+
+.chat-toggle-imessage:hover {
+  transform: scale(1.05);
+}
+
+.chat-container-demo {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  aspect-ratio: 300 / 420;
+  background: #000;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow: hidden;
+  border-radius: 24px;
+}
