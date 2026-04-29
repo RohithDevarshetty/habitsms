@@ -44,7 +44,7 @@
 ### Payments
 - [ ] Click upgrade on dashboard
 - [ ] Select Starter plan ($7/month)
-- [ ] Complete Stripe checkout (use test card: 4242 4242 4242 4242)
+- [ ] Complete Dodo checkout (use test card: 4242 4242 4242 4242)
 - [ ] Verify redirect to dashboard with success message
 - [ ] Check subscription status updates in database
 - [ ] Test Pro plan ($12/month)
@@ -61,7 +61,7 @@
 - [ ] Try accessing `/api/cron/*` without CRON_SECRET - should fail
 - [ ] Try viewing other user's habits - should fail (RLS)
 - [ ] Send fake Twilio webhook without signature - should fail
-- [ ] Send fake Stripe webhook without signature - should fail
+- [ ] Send fake Dodo webhook without signature - should fail
 - [ ] Try SQL injection in habit name field
 - [ ] Test XSS in habit description
 
@@ -93,7 +93,7 @@
 - [ ] Monitor Vercel logs in real-time
 - [ ] Watch Supabase dashboard for new signups
 - [ ] Monitor Twilio SMS logs
-- [ ] Check Stripe for payments
+- [ ] Check Dodo for payments
 - [ ] Respond to support emails quickly
 - [ ] Track key metrics:
   - Signups per hour
@@ -151,9 +151,9 @@
 4. Review streak calculation logic
 
 ### Payment Issues
-1. Verify Stripe Price IDs match environment
+1. Verify Dodo Product IDs match environment
 2. Check webhook events are being received
-3. Verify user has stripe_customer_id
+3. Verify user has dodo_customer_id
 4. Check subscription_status field
 
 ## 🔐 Security Reminders
@@ -163,7 +163,7 @@
 - [ ] Enable Vercel password protection for staging
 - [ ] Set up Supabase database backups (daily)
 - [ ] Configure rate limiting on public endpoints
-- [ ] Enable 2FA on all service accounts (Vercel, Supabase, Twilio, Stripe)
+- [ ] Enable 2FA on all service accounts (Vercel, Supabase, Twilio, Dodo)
 - [ ] Review Supabase RLS policies
 - [ ] Monitor for unusual SMS activity (abuse)
 

@@ -8,8 +8,7 @@ CREATE TABLE profiles (
   timezone TEXT DEFAULT 'UTC',
   subscription_tier TEXT DEFAULT 'free', -- 'free', 'starter', 'pro', 'team'
   subscription_status TEXT DEFAULT 'inactive', -- 'active', 'inactive', 'cancelled', 'past_due'
-  stripe_customer_id TEXT,
-  razorpay_customer_id TEXT,
+  dodo_customer_id TEXT,
   team_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -78,7 +77,7 @@ CREATE TABLE subscription_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL, -- 'created', 'updated', 'cancelled', 'payment_failed'
-  provider TEXT NOT NULL, -- 'stripe', 'razorpay'
+  provider TEXT NOT NULL, -- 'dodo'
   provider_event_id TEXT,
   metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()

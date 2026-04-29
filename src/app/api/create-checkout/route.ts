@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createCheckoutSession, STRIPE_PRICE_IDS } from '@/lib/payments/stripe'
+import { createCheckoutSession, DODO_PRODUCT_IDS, SubscriptionTier } from '@/lib/payments/dodo'
+
+const VALID_TIERS: SubscriptionTier[] = ['starter', 'pro', 'team']
 
 export async function POST(request: NextRequest) {
   try {
     const { tier } = await request.json()
 
-    if (!tier || !['starter', 'pro', 'team'].includes(tier)) {
+    if (!tier || !VALID_TIERS.includes(tier as SubscriptionTier)) {
       return NextResponse.json({ error: 'Invalid tier' }, { status: 400 })
     }
 
@@ -17,10 +19,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const priceId = STRIPE_PRICE_IDS[tier as keyof typeof STRIPE_PRICE_IDS]
+    const productId = DODO_PRODUCT_IDS[tier as SubscriptionTier]
 
-    if (!priceId) {
-      return NextResponse.json({ error: 'Price ID not configured' }, { status: 500 })
+    if (!productId) {
+      return NextResponse.json({ error: 'Product ID not configured' }, { status: 500 })
     }
 
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -28,12 +30,12 @@ export async function POST(request: NextRequest) {
     const session = await createCheckoutSession({
       userId: user.id,
       email: user.email!,
-      priceId,
+      tier: tier as SubscriptionTier,
       successUrl: `${origin}/dashboard?payment=success`,
       cancelUrl: `${origin}/dashboard?payment=cancelled`,
     })
 
-    return NextResponse.json({ sessionId: session.id, url: session.url })
+    return NextResponse.json({ sessionId: session.session_id, url: session.checkout_url })
   } catch (error) {
     console.error('[Create Checkout] Error:', error)
     return NextResponse.json(

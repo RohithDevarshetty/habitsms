@@ -16,8 +16,7 @@ export interface Database {
           timezone: string
           subscription_tier: string
           subscription_status: string
-          stripe_customer_id: string | null
-          razorpay_customer_id: string | null
+          dodo_customer_id: string | null
           team_id: string | null
           created_at: string
           updated_at: string
@@ -28,8 +27,7 @@ export interface Database {
           timezone?: string
           subscription_tier?: string
           subscription_status?: string
-          stripe_customer_id?: string | null
-          razorpay_customer_id?: string | null
+          dodo_customer_id?: string | null
           team_id?: string | null
           created_at?: string
           updated_at?: string
@@ -40,8 +38,7 @@ export interface Database {
           timezone?: string
           subscription_tier?: string
           subscription_status?: string
-          stripe_customer_id?: string | null
-          razorpay_customer_id?: string | null
+          dodo_customer_id?: string | null
           team_id?: string | null
           created_at?: string
           updated_at?: string
