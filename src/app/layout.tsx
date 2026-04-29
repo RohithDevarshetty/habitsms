@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Instrument_Serif, Barlow } from "next/font/google";
 import "./globals.css";
 import PwaRegistration from "@/components/PwaRegistration";
+import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
 
 const instrumentSerif = Instrument_Serif({
   weight: ["400"],
@@ -47,10 +48,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${instrumentSerif.variable} ${barlow.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
-      <PwaRegistration />
-      {children}
-    </body>
+        <ThemeProvider>
+          <PwaRegistration />
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
