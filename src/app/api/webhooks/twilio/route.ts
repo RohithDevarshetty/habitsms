@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
     const messageSid = body.MessageSid as string
 
     const isWhatsApp = fromRaw.startsWith('whatsapp:')
-    const from = fromRaw.replace('whatsapp:', '')
+    const rawFrom = fromRaw.replace('whatsapp:', '').trim()
+    const from = rawFrom.startsWith('+') ? rawFrom : `+${rawFrom}`
     const channel = isWhatsApp ? 'whatsapp' : 'sms'
 
     if (!from || !messageBody) {
@@ -83,8 +84,20 @@ export async function POST(request: NextRequest) {
         await handleResumeRequest(profile.id, from, channel)
         break
 
+      case 'pause':
+        await handlePauseRequest(profile.id, from, channel)
+        break
+
       case 'snooze':
         await handleSnoozeRequest(profile.id, from, channel)
+        break
+
+      case 'grace':
+        await handleGraceRequest(profile.id, from, channel)
+        break
+
+      case 'invite':
+        await handleInviteRequest(profile.id, from, channel)
         break
 
       case 'upgrade':
@@ -204,18 +217,158 @@ async function handleStatsRequest(userId: string, phoneNumber: string, channel: 
     return
   }
 
-  let stats = '📊 Your Habit Stats:\n\n'
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: recentLogs } = await supabase
+    .from('habit_logs')
+    .select('habit_id, completed')
+    .eq('user_id', userId)
+    .gte('logged_at', thirtyDaysAgo)
+
+  const logsByHabit: Record<string, { total: number; completed: number }> = {}
+  for (const log of recentLogs || []) {
+    if (!logsByHabit[log.habit_id]) logsByHabit[log.habit_id] = { total: 0, completed: 0 }
+    logsByHabit[log.habit_id].total++
+    if (log.completed) logsByHabit[log.habit_id].completed++
+  }
+
+  let stats = '📊 Your Stats (30d):\n\n'
   habits.forEach((habit) => {
-    stats += `${habit.name}:\n🔥 Current: ${habit.streak_count} days\n⭐ Best: ${habit.longest_streak} days\n\n`
+    const logs = logsByHabit[habit.id]
+    const pct = logs && logs.total > 0 ? Math.round((logs.completed / logs.total) * 100) : 0
+    stats += `${habit.name}:\n🔥 ${habit.streak_count}d streak | ⭐ Best: ${habit.longest_streak}d | ✅ ${pct}% done\n\n`
   })
 
   await sendSMS({ to: phoneNumber, message: stats.trim(), userId, channel })
+}
+
+async function handlePauseRequest(userId: string, phoneNumber: string, channel: 'sms' | 'whatsapp' = 'sms') {
+  const supabase = createServiceClient()
+  await supabase.from('habits').update({ reminder_enabled: false }).eq('user_id', userId)
+  await sendSMS({
+    to: phoneNumber,
+    message: 'Reminders paused. Text RESUME when you want them back.',
+    userId,
+    channel,
+  })
 }
 
 async function handleResumeRequest(userId: string, phoneNumber: string, channel: 'sms' | 'whatsapp' = 'sms') {
   const supabase = createServiceClient()
   await supabase.from('habits').update({ reminder_enabled: true }).eq('user_id', userId)
   await sendSMS({ to: phoneNumber, message: SMS_TEMPLATES.RESUME(), userId, channel })
+}
+
+async function handleInviteRequest(userId: string, phoneNumber: string, channel: 'sms' | 'whatsapp' = 'sms') {
+  const supabase = createServiceClient()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('referral_code')
+    .eq('id', userId)
+    .single()
+
+  const code = profile?.referral_code
+  if (!code) {
+    await sendSMS({ to: phoneNumber, message: 'Visit habitsms.com/settings to find your referral link.', userId, channel })
+    return
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://habitsms.com'
+  await sendSMS({
+    to: phoneNumber,
+    message: `Share this link and both of you get 1 free month when they subscribe: ${appUrl}/signup?ref=${code}`,
+    userId,
+    channel,
+  })
+}
+
+async function handleGraceRequest(userId: string, phoneNumber: string, channel: 'sms' | 'whatsapp' = 'sms') {
+  const supabase = createServiceClient()
+
+  // Check if user has used grace day this month
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('last_grace_day_used')
+    .eq('id', userId)
+    .single()
+
+  const lastGrace = profile?.last_grace_day_used
+  const usedThisMonth = lastGrace && new Date(lastGrace) >= new Date(monthStart)
+
+  if (usedThisMonth) {
+    await sendSMS({
+      to: phoneNumber,
+      message: 'You already used your grace day this month. Keep going — every day counts!',
+      userId,
+      channel,
+    })
+    return
+  }
+
+  // Restore streaks broken yesterday by incrementing streak_count back
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+  const { data: habits } = await supabase
+    .from('habits')
+    .select('id, name, streak_count')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+
+  let restored = 0
+  for (const habit of habits || []) {
+    // Only restore if they had a streak before (streak was reset to 0 or 1)
+    const { data: yesterdayLog } = await supabase
+      .from('habit_logs')
+      .select('id')
+      .eq('habit_id', habit.id)
+      .gte('logged_at', `${yesterdayStr}T00:00:00`)
+      .lte('logged_at', `${yesterdayStr}T23:59:59`)
+      .limit(1)
+
+    // If they didn't log yesterday and streak is 0, restore it
+    if (!yesterdayLog || yesterdayLog.length === 0) {
+      if (habit.streak_count === 0) {
+        // Insert a grace log for yesterday
+        await supabase.from('habit_logs').insert({
+          habit_id: habit.id,
+          user_id: userId,
+          completed: true,
+          response_value: 'GRACE',
+          source: 'sms',
+          logged_at: `${yesterdayStr}T12:00:00Z`,
+        })
+        await supabase.from('habits').update({ streak_count: 1 }).eq('id', habit.id)
+        restored++
+      }
+    }
+  }
+
+  if (restored === 0) {
+    await sendSMS({
+      to: phoneNumber,
+      message: 'No broken streaks to restore right now. Keep going!',
+      userId,
+      channel,
+    })
+    return
+  }
+
+  // Mark grace day used
+  await supabase
+    .from('profiles')
+    .update({ last_grace_day_used: now.toISOString() })
+    .eq('id', userId)
+
+  await sendSMS({
+    to: phoneNumber,
+    message: `Grace day applied! ${restored} streak${restored > 1 ? 's' : ''} restored. 1 grace day used this month. Keep the momentum!`,
+    userId,
+    channel,
+  })
 }
 
 async function handleSnoozeRequest(userId: string, phoneNumber: string, channel: 'sms' | 'whatsapp' = 'sms') {

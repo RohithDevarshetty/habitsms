@@ -1,15 +1,16 @@
 import DodoPayments from 'dodopayments'
 import crypto from 'crypto'
 
-const DODO_API_KEY = process.env.DODO_PAYMENTS_API_KEY!
 const DODO_WEBHOOK_SECRET = process.env.DODO_WEBHOOK_SECRET!
 
-const IS_TEST = process.env.NODE_ENV === 'development'
-
-const client = new DodoPayments({
-  bearerToken: DODO_API_KEY,
-  environment: IS_TEST ? 'test_mode' : 'live_mode',
-})
+function getClient(): DodoPayments {
+  const key = process.env.DODO_PAYMENTS_API_KEY
+  if (!key) throw new Error('DODO_PAYMENTS_API_KEY is not configured')
+  return new DodoPayments({
+    bearerToken: key,
+    environment: process.env.NODE_ENV === 'development' ? 'test_mode' : 'live_mode',
+  })
+}
 
 export const DODO_PRODUCT_IDS = {
   starter: process.env.DODO_STARTER_PRODUCT_ID!,
@@ -36,7 +37,7 @@ export async function createCheckoutSession(params: CreateCheckoutParams) {
     throw new Error(`Invalid tier: ${tier}`)
   }
 
-  const response = await client.checkoutSessions.create({
+  const response = await getClient().checkoutSessions.create({
     product_cart: [{ product_id: productId, quantity: 1 }],
     customer: {
       email,
@@ -67,7 +68,7 @@ export function verifyDodoWebhook(payload: string, signature: string) {
 }
 
 export async function getSubscription(subscriptionId: string) {
-  return client.subscriptions.retrieve(subscriptionId)
+  return getClient().subscriptions.retrieve(subscriptionId)
 }
 
 export function getTierFromProductId(productId: string): string {
@@ -77,4 +78,3 @@ export function getTierFromProductId(productId: string): string {
   return 'free'
 }
 
-export default client

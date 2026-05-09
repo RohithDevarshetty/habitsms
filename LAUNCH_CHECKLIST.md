@@ -180,7 +180,7 @@ Create canned responses for:
 - Billing questions
 
 ### Support Channels
-- Email: support@habitsms.com
+- Email: droshetty@gmail.com
 - Consider: Crisp chat widget, Discord community, or Twitter DMs
 
 ## 🎉 Post-Launch (Week 1)

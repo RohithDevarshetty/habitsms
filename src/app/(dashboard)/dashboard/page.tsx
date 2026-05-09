@@ -382,7 +382,7 @@ export default function DashboardPage() {
               <button className="hover:text-[color:var(--text)] transition-colors" style={{ color: 'var(--text)' }}>Dashboard</button>
               <button onClick={() => router.push('/dashboard/habits/new')} className="hover:text-[color:var(--text)] transition-colors">Habits</button>
               <button className="hover:text-[color:var(--text)] transition-colors">History</button>
-              <button className="hover:text-[color:var(--text)] transition-colors">Settings</button>
+              <button onClick={() => router.push('/settings')} className="hover:text-[color:var(--text)] transition-colors">Settings</button>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -429,7 +429,7 @@ export default function DashboardPage() {
               { label: 'Dashboard', go: () => {} },
               { label: 'Habits', go: () => router.push('/dashboard/habits/new') },
               { label: 'History', go: () => {} },
-              { label: 'Settings', go: () => {} },
+              { label: 'Settings', go: () => router.push('/settings') },
               { label: 'Import Health', go: () => setImportOpen(true) },
               { label: 'New habit', go: () => router.push('/dashboard/habits/new') },
               { label: 'Sign out', go: handleSignOut },

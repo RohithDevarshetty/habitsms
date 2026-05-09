@@ -209,7 +209,7 @@ export const SMS_TEMPLATES = {
     `Welcome to HabitSMS ${firstName}! First reminder at ${firstReminderTime}. Reply HELP for commands. Lets build habits!`,
 
   HELP: () =>
-    `HabitSMS Commands: Y-Done, N-Skip, SNOOZE-1hr, STATS-Streaks, RESUME-Reminders on, UPGRADE-Plans, HELP-This list`,
+    `HabitSMS: Y-Done, N-Skip, SNOOZE-1hr, STATS-Stats, PAUSE-Pause, RESUME-Resume, GRACE-Restore streak, INVITE-Refer friend, UPGRADE-Plans, HELP-This list`,
 
   STREAK_BROKEN: (habitName: string, previousStreak: number) =>
     `Your ${habitName} streak of ${previousStreak} days was broken. Don't worry! Start fresh today. Reply Y when done!`,

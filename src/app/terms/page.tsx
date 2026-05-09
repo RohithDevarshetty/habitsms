@@ -87,7 +87,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">11. Contact</h2>
             <p>Questions about these terms? Contact us at:</p>
-            <p className="font-semibold mt-2">support@habitsms.com</p>
+            <p className="font-semibold mt-2">droshetty@gmail.com</p>
           </section>
 
           <section className="text-sm text-gray-500 pt-4 border-t">

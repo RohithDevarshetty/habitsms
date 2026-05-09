@@ -141,6 +141,13 @@ export default function OnboardingPage() {
         if (habitsErr) throw habitsErr
       }
 
+      // Fire-and-forget welcome SMS
+      fetch('/api/sms/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      }).catch(() => {})
+
       router.push('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
