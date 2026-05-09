@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyTwilioWebhook } from '@/lib/twilio/client'
 import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
 import { parseSMSResponse, validateNumericResponse } from '@/lib/sms/parser'
+import type { ParsedSMSResponse } from '@/lib/sms/parser'
 import { createServiceClient } from '@/lib/supabase/server'
 import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
 import { findOldestPendingHabit } from '@/lib/sms/pending-queue'
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
 async function handleHabitResponse(
   userId: string,
   phoneNumber: string,
-  parsed: ReturnType<typeof parseSMSResponse>,
+  parsed: ParsedSMSResponse,
   channel: 'sms' | 'whatsapp' = 'sms'
 ) {
   const supabase = createServiceClient()
@@ -169,6 +170,7 @@ async function handleHabitResponse(
     completed,
     response_value: responseValue,
     source: channel,
+    ...(parsed.note ? { notes: parsed.note } : {}),
   })
 
   const streak = await calculateAndUpdateStreak(habit.id)
