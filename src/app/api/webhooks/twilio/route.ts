@@ -7,9 +7,11 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
 import { findOldestPendingHabit } from '@/lib/sms/pending-queue'
 import { createCheckoutSession } from '@/lib/payments/dodo'
+import { isInboundRateLimited } from '@/lib/utils/rate-limit'
 import { subMinutes } from 'date-fns'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://habitsms.com'
+const MAX_MESSAGE_LENGTH = 500
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const fromRaw = body.From as string
-    const messageBody = body.Body as string
+    const messageBody = (body.Body as string)?.substring(0, MAX_MESSAGE_LENGTH)
     const messageSid = body.MessageSid as string
 
     const isWhatsApp = fromRaw.startsWith('whatsapp:')
@@ -36,6 +38,11 @@ export async function POST(request: NextRequest) {
 
     if (!from || !messageBody) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (await isInboundRateLimited(from)) {
+      console.warn(`[Twilio webhook] Rate limit hit for ${from}`)
+      return NextResponse.json({ message: 'Too many requests' }, { status: 429 })
     }
 
     const supabase = createServiceClient()

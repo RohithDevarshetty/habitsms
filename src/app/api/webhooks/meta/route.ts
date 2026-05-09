@@ -7,9 +7,11 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
 import { findOldestPendingHabit } from '@/lib/sms/pending-queue'
 import { createCheckoutSession } from '@/lib/payments/dodo'
+import { isInboundRateLimited } from '@/lib/utils/rate-limit'
 import { subMinutes } from 'date-fns'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://habitsms.com'
+const MAX_MESSAGE_LENGTH = 500
 
 // Meta sends a GET to verify the webhook endpoint during setup
 export async function GET(request: NextRequest) {
@@ -46,8 +48,14 @@ export async function POST(request: NextRequest) {
     // Meta sends delivery receipts and other events — ignore non-message payloads
     if (!inbound) return NextResponse.json({ received: true })
 
-    const { from, messageId, text } = inbound
+    const { from, messageId } = inbound
+    const text = inbound.text.substring(0, MAX_MESSAGE_LENGTH)
     const supabase = createServiceClient()
+
+    if (await isInboundRateLimited(from)) {
+      console.warn(`[Meta webhook] Rate limit hit for ${from}`)
+      return NextResponse.json({ received: true })
+    }
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles').select('*').eq('phone_number', from).single()

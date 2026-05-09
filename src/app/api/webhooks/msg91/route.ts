@@ -6,30 +6,50 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
 import { findOldestPendingHabit } from '@/lib/sms/pending-queue'
 import { createCheckoutSession } from '@/lib/payments/dodo'
+import { isInboundRateLimited } from '@/lib/utils/rate-limit'
 import { subMinutes } from 'date-fns'
+import crypto from 'crypto'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://habitsms.com'
+const MAX_MESSAGE_LENGTH = 500
 
-function verifyMsg91Webhook(request: NextRequest): boolean {
-  const secret = request.nextUrl.searchParams.get('secret')
-  return secret === process.env.MSG91_WEBHOOK_SECRET
+function verifyMsg91Webhook(request: NextRequest, rawBody: string): boolean {
+  const secret = process.env.MSG91_WEBHOOK_SECRET
+  if (!secret) return false
+
+  // Prefer HMAC-SHA256 header if MSG91 sends it
+  const hmacHeader = request.headers.get('x-msg91-signature')
+  if (hmacHeader) {
+    const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+    return crypto.timingSafeEqual(Buffer.from(hmacHeader), Buffer.from(expected))
+  }
+
+  // Fall back to query-string secret
+  const querySecret = request.nextUrl.searchParams.get('secret')
+  return querySecret === secret
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyMsg91Webhook(request)) {
+    const rawBody = await request.text()
+    if (!verifyMsg91Webhook(request, rawBody)) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
     }
 
-    const body = await request.json()
+    const body = JSON.parse(rawBody)
     const rawSender: string = body.sender ?? ''
-    const messageBody: string = body.message ?? ''
+    const messageBody: string = (body.message ?? '').substring(0, MAX_MESSAGE_LENGTH)
 
     if (!rawSender || !messageBody) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const from = rawSender.startsWith('+') ? rawSender : `+${rawSender}`
+
+    if (await isInboundRateLimited(from)) {
+      console.warn(`[MSG91 webhook] Rate limit hit for ${from}`)
+      return NextResponse.json({ message: 'Too many requests' }, { status: 429 })
+    }
     const supabase = createServiceClient()
 
     const { data: profile, error: profileError } = await supabase
@@ -165,9 +185,9 @@ async function handleStatsRequest(userId: string, phoneNumber: string) {
     return
   }
 
-  let stats = '📊 Your Habit Stats:\n\n'
+  let stats = 'Your Stats (30d):\n\n'
   habits.forEach((habit) => {
-    stats += `${habit.name}:\n🔥 Current: ${habit.streak_count} days\n⭐ Best: ${habit.longest_streak} days\n\n`
+    stats += `${habit.name}: ${habit.streak_count}d streak | Best: ${habit.longest_streak}d\n\n`
   })
 
   await sendSMS({ to: phoneNumber, message: stats.trim(), userId })
