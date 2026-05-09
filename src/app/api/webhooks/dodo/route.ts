@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyDodoWebhook, getTierFromProductId } from '@/lib/payments/dodo'
 import { createServiceClient } from '@/lib/supabase/server'
+import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://habitsms.com'
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +47,17 @@ export async function POST(request: NextRequest) {
           provider_event_id: subscription.id,
           metadata: subscription,
         })
+
+        // Send payment confirmation SMS
+        const { data: profile } = await supabase
+          .from('profiles').select('phone_number').eq('id', userId).single()
+        if (profile?.phone_number) {
+          await sendSMS({
+            to: profile.phone_number,
+            message: SMS_TEMPLATES.PAYMENT_CONFIRMED(tier),
+            userId,
+          })
+        }
 
         console.log(`[Dodo] Subscription created for user ${userId}`)
         break
@@ -155,6 +169,17 @@ export async function POST(request: NextRequest) {
           provider_event_id: payment.id,
           metadata: payment,
         })
+
+        // Send payment failed SMS
+        const { data: failedProfile } = await supabase
+          .from('profiles').select('phone_number').eq('id', profile.id).single()
+        if (failedProfile?.phone_number) {
+          await sendSMS({
+            to: failedProfile.phone_number,
+            message: SMS_TEMPLATES.PAYMENT_FAILED(APP_URL),
+            userId: profile.id,
+          })
+        }
 
         console.log(`[Dodo] Payment failed for user ${profile.id}`)
         break

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface PricingPlan {
   name: string
@@ -55,6 +56,36 @@ export default function DynamicPricing() {
   const { country } = useCountry()
   const prices = PRICES[country] || PRICES.IN
   const symbol = prices.symbol
+  const [loadingTier, setLoadingTier] = useState<string | null>(null)
+
+  async function handleCheckout(tier: string) {
+    if (loadingTier) return
+    setLoadingTier(tier)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        window.location.href = `/login?redirect=/&tier=${tier}`
+        return
+      }
+
+      const res = await fetch('/api/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create checkout')
+      window.location.href = data.url
+    } catch (err) {
+      console.error('Checkout error:', err)
+      alert('Something went wrong. Please try again.')
+    } finally {
+      setLoadingTier(null)
+    }
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
@@ -111,16 +142,23 @@ export default function DynamicPricing() {
             </ul>
 
             <button
-              disabled={isTeam}
+              disabled={isTeam || loadingTier === plan.name.toLowerCase()}
+              onClick={() => !isTeam && handleCheckout(plan.name.toLowerCase())}
               className={`mt-8 w-full py-3 rounded-full font-medium text-sm transition ${
                 isTeam
                   ? 'bg-white/5 text-white/30 cursor-not-allowed'
                   : isHighlighted
-                  ? 'bg-white text-black hover:bg-white/90'
-                  : 'liquid-glass text-white hover:bg-white/10'
+                  ? 'bg-white text-black hover:bg-white/90 disabled:opacity-60'
+                  : 'liquid-glass text-white hover:bg-white/10 disabled:opacity-60'
               }`}
             >
-              {isTeam ? 'Coming Soon' : isHighlighted ? 'Start Free Trial' : 'Get Started'}
+              {loadingTier === plan.name.toLowerCase()
+                ? 'Redirecting...'
+                : isTeam
+                ? 'Coming Soon'
+                : isHighlighted
+                ? 'Start Free Trial'
+                : 'Get Started'}
             </button>
 
             {isHighlighted && (

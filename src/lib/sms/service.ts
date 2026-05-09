@@ -2,6 +2,7 @@ import { twilioClient, TWILIO_PHONE_NUMBER, TWILIO_WHATSAPP_NUMBER, formatTochan
 import { createServiceClient } from '@/lib/supabase/server'
 import { parsePhoneNumber } from 'libphonenumber-js'
 import { sendMSG91SMS, isIndianNumber, MSG91_COST_CENTS, getMSG91Config } from '@/lib/msg91/sms'
+import { sendWhatsAppMessage, getMetaConfig, META_WHATSAPP_COST_PAISE } from '@/lib/meta/whatsapp'
 
 interface SendSMSParams {
   to: string
@@ -99,20 +100,34 @@ export async function sendSMS({
     let messageId: string | null = null
     let status = 'sent'
     
-    // For WhatsApp, always use Twilio
+    // For WhatsApp: use Meta Cloud API if configured, otherwise fall back to Twilio
     if (channel === 'whatsapp') {
-      const fromNumber = TWILIO_WHATSAPP_NUMBER
+      const metaConfig = getMetaConfig()
+
+      if (metaConfig) {
+        const result = await sendWhatsAppMessage(formattedPhone, message)
+        if (result.success) {
+          await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'sent', 'meta', result.messageId ?? null, META_WHATSAPP_COST_PAISE)
+          return { success: true, messageId: result.messageId }
+        }
+        if (result.windowClosed) {
+          // 24hr session expired — log but don't fall back (template needed, not a plain text retry)
+          console.warn(`[Meta] 24hr window expired for ${formattedPhone}`)
+          await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'window_closed', 'meta', null, 0)
+          return { success: false, error: '24hr session window expired' }
+        }
+        // Other Meta error — fall through to Twilio WhatsApp
+        console.warn('[Meta] WhatsApp send failed, falling back to Twilio:', result.error)
+      }
+
       const twilioMessage = await twilioClient.messages.create({
         body: message,
-        from: formatTochannel(fromNumber, channel),
+        from: formatTochannel(TWILIO_WHATSAPP_NUMBER, channel),
         to: formatTochannel(formattedPhone, channel),
       })
       messageId = twilioMessage.sid
       status = twilioMessage.status
-      
-      // Log the SMS
       await logSMS(userId, formattedPhone, message, habitId, 'outbound', status, 'twilio', messageId, SMS_COSTS.TWILIO_US)
-      
       return { success: true, messageId }
     }
     
@@ -162,50 +177,60 @@ export async function sendSMS({
   }
 }
 
-// SMS Templates
+// SMS Templates — text must match DLT-approved templates exactly (see docs/dlt-templates.md)
 export const SMS_TEMPLATES = {
-  REMINDER_BOOLEAN: (habitName: string) => `Did you ${habitName} today? Reply with:
-Y - Yes, I did it!
-N - Not today
-SKIP - Pause for today
-STATS - View your streak`,
+  REMINDER_BOOLEAN: (habitName: string) =>
+    `Did you ${habitName} today? Reply Y-Yes, N-No, SNOOZE-1hr, STATS-Streak`,
 
-  REMINDER_NUMBER: (habitName: string, unit: string) => `How many ${unit} of ${habitName} today?
-Reply with a number (e.g., "8" for 8 ${unit})
-Reply SKIP to pause`,
+  REMINDER_NUMBER: (unit: string, habitName: string) =>
+    `How many ${unit} of ${habitName} today? Reply with a number or N to skip.`,
 
-  CONFIRMATION: (habitName: string, streak: number) => `Great job! ${habitName} logged!
-Current streak: ${streak} days
-Keep it up!`,
+  CONFIRMATION: (habitName: string, streak: number) =>
+    `Great job! ${habitName} logged! Current streak: ${streak} days. Keep it up!`,
 
-  MILESTONE_7: (habitName: string) => `Awesome! You've completed "${habitName}" for 7 days straight!
-You're building a solid habit!`,
+  MILESTONE: (streak: number, habitName: string) =>
+    `Amazing! ${streak}-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 
-  MILESTONE_30: (habitName: string) => `AMAZING! 30-day streak for "${habitName}"!
-You're unstoppable! Keep crushing it!`,
+  // Keep specific aliases for the milestone values used in webhook handlers
+  MILESTONE_7: (habitName: string) =>
+    `Amazing! 7-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 
-  MILESTONE_100: (habitName: string) => `LEGENDARY! 100-day streak for "${habitName}"!
-You're in the top 1%! Incredible dedication!`,
+  MILESTONE_30: (habitName: string) =>
+    `Amazing! 30-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 
-  WEEKLY_SUMMARY: (completedCount: number, longestStreak: number) => `Your Week in Review:
-${completedCount} habits completed
-Longest streak: ${longestStreak} days
-Keep crushing it!
+  MILESTONE_100: (habitName: string) =>
+    `Amazing! 100-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 
-Reply STATS for details`,
+  WEEKLY_SUMMARY: (completedCount: number, longestStreak: number) =>
+    `Your week: ${completedCount} habits completed. Best streak: ${longestStreak} days. Keep crushing it! Reply STATS.`,
 
-  WELCOME: (firstName: string, firstReminderTime: string) => `Welcome to HabitSMS, ${firstName}!
-Your first reminder will arrive at ${firstReminderTime}.
-Reply HELP anytime for commands.
-Let's build great habits together!`,
+  WELCOME: (firstName: string, firstReminderTime: string) =>
+    `Welcome to HabitSMS ${firstName}! First reminder at ${firstReminderTime}. Reply HELP for commands. Lets build habits!`,
 
-  HELP: () => `HabitSMS Commands:
-Y or YES - Mark habit as done
-N or NO - Mark as skipped
-NUMBER - Log quantity
-STATS - View your streaks
-PAUSE - Pause reminders
-HELP - Show this message`,
+  HELP: () =>
+    `HabitSMS Commands: Y-Done, N-Skip, SNOOZE-1hr, STATS-Streaks, RESUME-Reminders on, UPGRADE-Plans, HELP-This list`,
 
-  STREAK_BROKEN: (habitName: string, previousStreak: number) => `Your ${habitName} streak of ${previousStreak} days was broken. Don't worry! Start fresh today. Reply Y when done!`,
+  STREAK_BROKEN: (habitName: string, previousStreak: number) =>
+    `Your ${habitName} streak of ${previousStreak} days was broken. Don't worry! Start fresh today. Reply Y when done!`,
+
+  UPGRADE: (starterPrice = '7', proPrice = '12') =>
+    `Which plan? STARTER Rs.${starterPrice}/mo-3 habits, PRO Rs.${proPrice}/mo-unlimited habits+summaries. Reply STARTER or PRO.`,
+
+  UPGRADE_LIMIT: (habitCount: number, appUrl: string) =>
+    `You have reached the ${habitCount}-habit limit. Upgrade to Pro for unlimited habits: ${appUrl}/upgrade`,
+
+  PLAN_CHECKOUT: (tier: string, url: string) =>
+    `Your HabitSMS ${tier.charAt(0).toUpperCase() + tier.slice(1)} plan checkout link: ${url} Link expires in 24 hours.`,
+
+  PAYMENT_CONFIRMED: (tier: string) =>
+    `Payment confirmed! You are now on HabitSMS ${tier.charAt(0).toUpperCase() + tier.slice(1)} plan. All features unlocked. Reply HELP anytime.`,
+
+  PAYMENT_FAILED: (appUrl: string) =>
+    `Your HabitSMS payment failed. Update your payment method to keep reminders active: ${appUrl}/billing`,
+
+  RESUME: () =>
+    `Reminders are back on! Your habits are waiting. Reply Y when you complete one.`,
+
+  SNOOZE_CONFIRMED: (habitName: string) =>
+    `Got it! Reminding you about ${habitName} in 1 hour.`,
 }

@@ -55,6 +55,7 @@
 - [ ] Check `/api/cron/send-reminders` runs every minute
 - [ ] Check `/api/cron/calculate-streaks` runs daily at midnight
 - [ ] Check `/api/cron/weekly-summary` runs Sunday 8pm
+- [ ] Check `/api/cron/nudge-free-users` runs Wednesday 6pm UTC
 - [ ] View Vercel logs to verify cron execution
 
 ### Security

@@ -3,13 +3,17 @@ export type SMSResponseType =
   | 'skipped'
   | 'number'
   | 'stats'
-  | 'pause'
+  | 'resume'
+  | 'snooze'
+  | 'upgrade'
+  | 'plan_select'
   | 'help'
   | 'unknown'
 
 export interface ParsedSMSResponse {
   type: SMSResponseType
   value?: number
+  planTier?: 'starter' | 'pro'
   originalText: string
 }
 
@@ -19,7 +23,11 @@ const PATTERNS = {
   negative: /^(n|no|nope|nah|skip|miss|missed|0)$/i,
   number: /^\d+$/,
   stats: /^(stats|status|streak|progress|summary)$/i,
-  pause: /^(pause|vacation|stop|halt)$/i,
+  resume: /^(resume|unpause|restart)$/i,
+  snooze: /^(snooze|later|1h|1 hour)$/i,
+  upgrade: /^(upgrade|plans|pricing|subscribe|buy)$/i,
+  plan_starter: /^(starter|start)$/i,
+  plan_pro: /^(pro)$/i,
   help: /^(help|\?|commands)$/i,
 }
 
@@ -59,12 +67,27 @@ export function parseSMSResponse(text: string): ParsedSMSResponse {
     }
   }
 
-  // Check for pause request
-  if (PATTERNS.pause.test(trimmed)) {
-    return {
-      type: 'pause',
-      originalText: text,
-    }
+  // Check for resume request
+  if (PATTERNS.resume.test(trimmed)) {
+    return { type: 'resume', originalText: text }
+  }
+
+  // Check for snooze request
+  if (PATTERNS.snooze.test(trimmed)) {
+    return { type: 'snooze', originalText: text }
+  }
+
+  // Check for upgrade request
+  if (PATTERNS.upgrade.test(trimmed)) {
+    return { type: 'upgrade', originalText: text }
+  }
+
+  // Check for plan selection (only meaningful after an upgrade options message)
+  if (PATTERNS.plan_starter.test(trimmed)) {
+    return { type: 'plan_select', planTier: 'starter', originalText: text }
+  }
+  if (PATTERNS.plan_pro.test(trimmed)) {
+    return { type: 'plan_select', planTier: 'pro', originalText: text }
   }
 
   // Check for help request

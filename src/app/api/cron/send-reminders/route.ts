@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
           const message =
             habit.response_type === 'boolean'
               ? SMS_TEMPLATES.REMINDER_BOOLEAN(habit.name)
-              : SMS_TEMPLATES.REMINDER_NUMBER(habit.name, habit.response_unit || 'units')
+              : SMS_TEMPLATES.REMINDER_NUMBER(habit.response_unit || 'units', habit.name)
 
           const result = await sendSMS({
             to: profile.phone_number,
@@ -106,6 +106,57 @@ export async function GET(request: NextRequest) {
       } catch (habitError) {
         errorCount++
         console.error(`[Cron] Error processing habit ${habit.id}:`, habitError)
+      }
+    }
+
+    // Process snoozed reminders from scheduled_tasks
+    const { data: snoozedTasks } = await supabase
+      .from('scheduled_tasks')
+      .select(`
+        id,
+        user_id,
+        habit_id,
+        habits!inner(name, response_type, response_unit, profiles!inner(phone_number, timezone))
+      `)
+      .eq('task_type', 'send_reminder')
+      .eq('status', 'pending')
+      .lte('scheduled_for', now.toISOString())
+
+    for (const task of snoozedTasks || []) {
+      try {
+        const habit = task.habits as unknown as {
+          name: string
+          response_type: string
+          response_unit: string
+          profiles: { phone_number: string; timezone: string }
+        }
+        const profile = Array.isArray(habit.profiles) ? habit.profiles[0] : habit.profiles
+
+        if (!profile) continue
+
+        const message =
+          habit.response_type === 'boolean'
+            ? SMS_TEMPLATES.REMINDER_BOOLEAN(habit.name)
+            : SMS_TEMPLATES.REMINDER_NUMBER(habit.response_unit || 'units', habit.name)
+
+        const result = await sendSMS({
+          to: profile.phone_number,
+          message,
+          userId: task.user_id,
+          habitId: task.habit_id,
+        })
+
+        await supabase
+          .from('scheduled_tasks')
+          .update({ status: result.success ? 'completed' : 'failed' })
+          .eq('id', task.id)
+
+        if (result.success) sentCount++
+        else errorCount++
+      } catch (taskError) {
+        errorCount++
+        await supabase.from('scheduled_tasks').update({ status: 'failed' }).eq('id', task.id)
+        console.error(`[Cron] Error processing snoozed task ${task.id}:`, taskError)
       }
     }
 

@@ -52,6 +52,21 @@ SELECT cron.schedule(
   );
   $$
 );
+
+-- Nudge free users to upgrade (Wednesday 6 PM UTC)
+SELECT cron.schedule(
+  'nudge-free-users',
+  '0 18 * * 3', -- Every Wednesday at 6 PM UTC
+  $$
+  SELECT net.http_post(
+    url := current_setting('app.app_url') || '/api/cron/nudge-free-users',
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || current_setting('app.cron_secret'),
+      'Content-Type', 'application/json'
+    )
+  );
+  $$
+);
 */
 
 -- Alternative: Create a scheduled_tasks table for manual processing
