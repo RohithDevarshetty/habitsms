@@ -242,7 +242,7 @@ export default function DashboardPage() {
     }
     const prevPct = Math.round((prevCompleted / (activeCount * range)) * 100)
     return { pct, delta: pct - prevPct }
-  }, [activeCount, range, logsByDay, now, tz])
+  }, [activeCount, range, daysSinceJoin, logsByDay, now, tz])
 
   const loggedTodaySet = logsByDay.get(todayKey) ?? new Set<string>()
   const loggedTodayCount = Math.min(loggedTodaySet.size, activeCount)

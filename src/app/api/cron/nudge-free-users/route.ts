@@ -3,7 +3,6 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
 import { subDays } from 'date-fns'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://habitsms.com'
 const NUDGE_COOLDOWN_DAYS = 7
 
 function verifyCronSecret(request: NextRequest): boolean {
