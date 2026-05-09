@@ -63,8 +63,9 @@ export async function GET(request: NextRequest) {
         const userTime = toZonedTime(now, profile.timezone)
         const userCurrentTime = format(userTime, 'HH:mm')
 
-        // Check if it's time to send reminder (within same minute)
-        if (userCurrentTime === habit.reminder_time) {
+        // reminder_time is stored as HH:MM:SS by PostgreSQL — compare only HH:MM
+        const habitTime = (habit.reminder_time as string).substring(0, 5)
+        if (userCurrentTime === habitTime) {
           // Check if reminder was already sent today
           const today = format(userTime, 'yyyy-MM-dd')
           const { data: todayReminder } = await supabase

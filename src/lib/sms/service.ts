@@ -89,7 +89,8 @@ export async function sendSMS({
   channel = 'sms',
 }: SendSMSParams): Promise<SMSResult> {
   try {
-    const parsed = parsePhoneNumber(to)
+    const normalizedTo = to.startsWith('+') ? to : `+${to}`
+    const parsed = parsePhoneNumber(normalizedTo)
     if (!parsed || !parsed.isValid()) {
       return { success: false, error: 'Invalid phone number' }
     }

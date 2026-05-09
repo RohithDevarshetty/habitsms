@@ -127,8 +127,8 @@ async function handleHabitResponse(
     return
   }
 
-  if (habit.response_type === 'number' && parsed.type !== 'number' && parsed.type !== 'skipped') {
-    await sendSMS({ to: phoneNumber, message: `Please reply with a number for ${habit.name}, or N to skip.`, userId, habitId: habit.id, channel: 'whatsapp' })
+  if (habit.response_type === 'number' && parsed.type !== 'number' && parsed.type !== 'skipped' && parsed.type !== 'completed') {
+    await sendSMS({ to: phoneNumber, message: `How many ${habit.response_unit || 'units'} of ${habit.name}? Reply with a number, Y to mark done, or N to skip.`, userId, habitId: habit.id, channel: 'whatsapp' })
     return
   }
 

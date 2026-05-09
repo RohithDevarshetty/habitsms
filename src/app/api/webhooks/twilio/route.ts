@@ -135,10 +135,12 @@ async function handleHabitResponse(
     return
   }
 
-  if (habit.response_type === 'number' && parsed.type !== 'number' && parsed.type !== 'skipped') {
+  // For number habits: accept Y/yes as "completed" without a specific value
+  // Only reject if it's truly unknown (not a number, not Y/N)
+  if (habit.response_type === 'number' && parsed.type !== 'number' && parsed.type !== 'skipped' && parsed.type !== 'completed') {
     await sendSMS({
       to: phoneNumber,
-      message: `Please reply with a number for ${habit.name}, or N to skip.`,
+      message: `How many ${habit.response_unit || 'units'} of ${habit.name}? Reply with a number, Y to mark done, or N to skip.`,
       userId,
       habitId: habit.id,
       channel,

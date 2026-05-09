@@ -15,7 +15,25 @@ export async function findOldestPendingHabit(userId: string) {
     .gte('created_at', todayStart)
     .order('created_at', { ascending: true })
 
-  if (!sentReminders || sentReminders.length === 0) return null
+  // No outbound reminders today — fall back to oldest active habit not yet logged today
+  if (!sentReminders || sentReminders.length === 0) {
+    const { data: todayLogs } = await supabase
+      .from('habit_logs')
+      .select('habit_id')
+      .eq('user_id', userId)
+      .gte('logged_at', todayStart)
+
+    const answeredIds = new Set(todayLogs?.map((l) => l.habit_id) ?? [])
+
+    const { data: activeHabits } = await supabase
+      .from('habits')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+
+    return activeHabits?.find((h) => !answeredIds.has(h.id)) ?? null
+  }
 
   // Habits already logged today are considered answered
   const { data: todayLogs } = await supabase

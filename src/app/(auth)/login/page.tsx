@@ -3,14 +3,29 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, ChevronDown } from 'lucide-react'
+
+const COUNTRIES = [
+  { code: 'IN', dial: '+91', flag: '🇮🇳', name: 'India' },
+  { code: 'US', dial: '+1', flag: '🇺🇸', name: 'United States' },
+  { code: 'GB', dial: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+  { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: 'SG', dial: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: 'AU', dial: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: 'CA', dial: '+1', flag: '🇨🇦', name: 'Canada' },
+  { code: 'DE', dial: '+49', flag: '🇩🇪', name: 'Germany' },
+]
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState('')
+  const [country, setCountry] = useState(COUNTRIES[0])
+  const [number, setNumber] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
   const supabase = createClient()
+
+  const fullPhone = `${country.dial}${number.replace(/\D/g, '')}`
 
   const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,11 +34,11 @@ export default function LoginPage() {
 
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        phone,
+        phone: fullPhone,
         options: { channel: 'sms' },
       })
       if (error) throw error
-      router.push(`/verify?phone=${encodeURIComponent(phone)}`)
+      router.push(`/verify?phone=${encodeURIComponent(fullPhone)}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send verification code')
       setLoading(false)
@@ -32,7 +47,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Background */}
       <div
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
@@ -44,7 +58,6 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Navbar */}
       <nav className="relative z-10 px-5 sm:px-8 py-5 flex items-center justify-between">
         <a href="/" className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-full liquid-glass-strong flex items-center justify-center shrink-0">
@@ -55,18 +68,13 @@ export default function LoginPage() {
           </div>
           <span className="font-heading italic text-xl tracking-tight">HabitSMS</span>
         </a>
-        <a
-          href="/"
-          className="text-white/50 font-body text-sm hover:text-white transition"
-        >
+        <a href="/" className="text-white/50 font-body text-sm hover:text-white transition">
           ← Back to home
         </a>
       </nav>
 
-      {/* Center card */}
       <div className="relative z-10 flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-sm">
-          {/* Header */}
           <div className="text-center mb-8 blur-in">
             <h1 className="text-3xl sm:text-4xl font-heading italic text-white mb-2">
               Welcome back.
@@ -76,25 +84,57 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Glass form */}
           <div className="liquid-glass rounded-2xl p-6 sm:p-8 blur-in-up">
             <form onSubmit={handlePhoneLogin} className="space-y-5">
               <div>
-                <label htmlFor="phone" className="block text-sm font-body text-white/60 mb-2">
+                <label className="block text-sm font-body text-white/60 mb-2">
                   Phone number
                 </label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 234 567 8900"
-                  required
-                  autoComplete="tel"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body placeholder:text-white/25 focus:outline-none focus:border-white/30 transition text-base"
-                />
+                <div className="flex gap-2">
+                  {/* Country picker */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowDropdown(!showDropdown)}
+                      className="h-full px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body flex items-center gap-1.5 hover:border-white/20 transition whitespace-nowrap"
+                    >
+                      <span>{country.flag}</span>
+                      <span className="text-sm">{country.dial}</span>
+                      <ChevronDown size={12} className="text-white/40" />
+                    </button>
+                    {showDropdown && (
+                      <div className="absolute top-full left-0 mt-1 w-52 bg-[#0a0f1e] border border-white/10 rounded-xl overflow-hidden z-50 shadow-xl">
+                        {COUNTRIES.map((c) => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => { setCountry(c); setShowDropdown(false) }}
+                            className="w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-white/5 transition text-left"
+                          >
+                            <span className="text-base">{c.flag}</span>
+                            <span className="text-sm text-white/80 font-body">{c.name}</span>
+                            <span className="text-xs text-white/40 font-body ml-auto">{c.dial}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Number input */}
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={number}
+                    onChange={(e) => setNumber(e.target.value)}
+                    onInput={(e) => setNumber((e.target as HTMLInputElement).value)}
+                    placeholder="98765 43210"
+                    required
+                    autoComplete="tel-national"
+                    className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body placeholder:text-white/25 focus:outline-none focus:border-white/30 transition text-base"
+                  />
+                </div>
                 <p className="text-white/25 font-body font-light text-xs mt-2">
-                  Include country code · e.g. +91 for India, +1 for US
+                  {fullPhone.length > 3 ? `Will send to ${fullPhone}` : 'Select country and enter number'}
                 </p>
               </div>
 
@@ -106,7 +146,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading || phone.length < 8}
+                disabled={loading || number.replace(/\D/g, '').length < 7}
                 className="w-full bg-white text-black rounded-full py-3 text-sm font-body font-semibold flex items-center justify-center gap-1.5 hover:bg-white/90 transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {loading ? 'Sending code…' : <><span>Send Code</span><ArrowUpRight size={14} /></>}

@@ -120,7 +120,7 @@ export default function OnboardingPage() {
       // Upsert profile with timezone
       const { error: profileErr } = await supabase
         .from('profiles')
-        .upsert({ id: user.id, phone_number: user.phone ?? '', timezone }, { onConflict: 'id' })
+        .upsert({ id: user.id, phone_number: user.phone ? (user.phone.startsWith('+') ? user.phone : `+${user.phone}`) : '', timezone }, { onConflict: 'id' })
       if (profileErr) throw profileErr
 
       // Create selected habits

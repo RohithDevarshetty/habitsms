@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight, Plus, Download, Flame } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
-import { subDays } from 'date-fns'
+import { subDays, differenceInDays } from 'date-fns'
 import ThemeToggle from '@/components/ThemeToggle'
 import AppleHealthImport from '@/components/AppleHealthImport'
 
@@ -165,7 +165,7 @@ export default function DashboardPage() {
     const since = subDays(new Date(), 90).toISOString()
 
     const [profileRes, habitsRes, logsRes, smsRes] = await Promise.all([
-      supabase.from('profiles').select('id, timezone').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('id, timezone, created_at').eq('id', user.id).maybeSingle(),
       supabase.from('habits').select('*').eq('is_active', true).order('created_at', { ascending: false }),
       supabase.from('habit_logs').select('id, habit_id, logged_at, completed').eq('user_id', user.id).gte('logged_at', since),
       supabase.from('sms_messages').select('id, message_body, direction, created_at, habit_id').eq('user_id', user.id).order('created_at', { ascending: false }).limit(6),
@@ -185,6 +185,10 @@ export default function DashboardPage() {
   const tz = profile?.timezone || 'UTC'
   const now = new Date()
   const localHour = Number(formatInTimeZone(now, tz, 'H'))
+  // Days since account creation (min 1 so today always counts)
+  const daysSinceJoin = profile?.created_at
+    ? Math.max(1, differenceInDays(now, new Date(profile.created_at)) + 1)
+    : range
   const todayKey = dayKey(now, tz)
   const todayFormatted = formatInTimeZone(now, tz, 'EEEE, MMMM d')
 
@@ -214,8 +218,10 @@ export default function DashboardPage() {
 
   const consistency = useMemo(() => {
     if (activeCount === 0) return { pct: 0, delta: 0 }
+    // Cap range to days since joining so new users don't see artificially low scores
+    const effectiveRange = Math.min(range, daysSinceJoin)
     const days: string[] = []
-    for (let i = 0; i < range; i++) {
+    for (let i = 0; i < effectiveRange; i++) {
       days.push(dayKey(subDays(now, i), tz))
     }
     let completed = 0
@@ -223,7 +229,7 @@ export default function DashboardPage() {
       const set = logsByDay.get(d)
       if (set) completed += Math.min(set.size, activeCount)
     }
-    const pct = Math.round((completed / (activeCount * range)) * 100)
+    const pct = Math.round((completed / (activeCount * effectiveRange)) * 100)
 
     const prevDays: string[] = []
     for (let i = range; i < range * 2; i++) {
