@@ -8,7 +8,7 @@ import WhatsAppGifChat from './test'
 import IMessageChat from './imessage'
 
 const REGION_PRICING: Record<string, { symbol: string; price: string }> = {
-  IN: { symbol: '₹', price: '199/mo' },
+  IN: { symbol: '₹', price: '99/mo' },
   US: { symbol: '$', price: '4.99/mo' },
   default: { symbol: '$', price: '4.99/mo' },
 }
