@@ -5,6 +5,9 @@ export type SMSResponseType =
   | 'stats'
   | 'resume'
   | 'snooze'
+  | 'pause'
+  | 'grace'
+  | 'invite'
   | 'upgrade'
   | 'plan_select'
   | 'help'
@@ -45,6 +48,9 @@ const PATTERNS = {
   stats: /^(stats|status|streak|progress|summary)$/i,
   resume: /^(resume|unpause|restart)$/i,
   snooze: /^(snooze|later|1h|1 hour)$/i,
+  pause: /^(pause|stop|vacation|off)$/i,
+  grace: /^(grace|forgive|restore)$/i,
+  invite: /^(invite|refer|referral|share)$/i,
   upgrade: /^(upgrade|plans|pricing|subscribe|buy)$/i,
   plan_starter: /^(starter|start)$/i,
   plan_pro: /^(pro)$/i,
@@ -95,6 +101,21 @@ export function parseSMSResponse(text: string): ParsedSMSResponse {
   // Check for snooze request
   if (PATTERNS.snooze.test(trimmed)) {
     return { type: 'snooze', originalText: text }
+  }
+
+  // Check for pause request
+  if (PATTERNS.pause.test(trimmed)) {
+    return { type: 'pause', originalText: text }
+  }
+
+  // Check for grace day request
+  if (PATTERNS.grace.test(trimmed)) {
+    return { type: 'grace', originalText: text }
+  }
+
+  // Check for invite/referral request
+  if (PATTERNS.invite.test(trimmed)) {
+    return { type: 'invite', originalText: text }
   }
 
   // Check for upgrade request
