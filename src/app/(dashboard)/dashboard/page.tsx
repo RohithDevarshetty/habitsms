@@ -42,6 +42,7 @@ interface SmsMessage {
 interface Profile {
   id: string
   timezone: string
+  created_at?: string
 }
 
 type RangeDays = 7 | 30 | 90
