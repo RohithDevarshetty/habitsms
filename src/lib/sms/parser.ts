@@ -14,7 +14,27 @@ export interface ParsedSMSResponse {
   type: SMSResponseType
   value?: number
   planTier?: 'starter' | 'pro'
+  note?: string
   originalText: string
+}
+
+const FLEXIBLE_PATTERNS = {
+  affirmative_start: /^(y\b|yes|yeah|yep|yup|done|completed|finished|crushed|nailed)/i,
+  affirmative_phrase: /\b(i did|did it|got it done|crushed it|nailed it|finished it)\b/i,
+  affirmative_repeat: /^ye+s+/i,
+  negative_start: /^(no\b|nah|nope|not |couldn'?t|can'?t|didn'?t|missed|skipped)/i,
+  negative_phrase: /\b(didn'?t|couldn'?t|can'?t|was sick|not today|missed it|skipped)\b/i,
+  number_embedded: /\b(\d+)\b/,
+}
+
+function extractNote(text: string): string | null {
+  const stripped = text
+    .replace(/^(no|nah|nope|not|couldn'?t|can'?t|didn'?t|missed|skipped)\s*/i, '')
+    .replace(/^(i was|i'm|im|was|because|since|as)\s*/i, '')
+    .trim()
+    .replace(/^[,;:\-–—]+\s*/, '')
+    .trim()
+  return stripped.length > 0 ? stripped : null
 }
 
 // Response patterns
@@ -98,7 +118,31 @@ export function parseSMSResponse(text: string): ParsedSMSResponse {
     }
   }
 
-  // Unknown response
+  // Layer 2: flexible affirmative
+  if (
+    FLEXIBLE_PATTERNS.affirmative_start.test(trimmed) ||
+    FLEXIBLE_PATTERNS.affirmative_phrase.test(trimmed) ||
+    FLEXIBLE_PATTERNS.affirmative_repeat.test(trimmed)
+  ) {
+    return { type: 'completed', originalText: text }
+  }
+
+  // Layer 2: flexible negative — extract trailing text as note
+  if (
+    FLEXIBLE_PATTERNS.negative_start.test(trimmed) ||
+    FLEXIBLE_PATTERNS.negative_phrase.test(trimmed)
+  ) {
+    const note = extractNote(trimmed) || undefined
+    return { type: 'skipped', note, originalText: text }
+  }
+
+  // Layer 2: number embedded in short text (≤8 words)
+  const wordCount = trimmed.split(/\s+/).length
+  const numMatch = wordCount <= 8 ? trimmed.match(FLEXIBLE_PATTERNS.number_embedded) : null
+  if (numMatch) {
+    return { type: 'number', value: parseInt(numMatch[1], 10), originalText: text }
+  }
+
   return {
     type: 'unknown',
     originalText: text,

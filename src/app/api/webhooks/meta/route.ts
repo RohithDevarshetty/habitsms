@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getMetaConfig, verifyMetaWebhook, parseMetaWebhookBody } from '@/lib/meta/whatsapp'
 import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
 import { parseSMSResponse, validateNumericResponse } from '@/lib/sms/parser'
+import type { ParsedSMSResponse } from '@/lib/sms/parser'
 import { createServiceClient } from '@/lib/supabase/server'
 import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
 import { findOldestPendingHabit } from '@/lib/sms/pending-queue'
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
 async function handleHabitResponse(
   userId: string,
   phoneNumber: string,
-  parsed: ReturnType<typeof parseSMSResponse>
+  parsed: ParsedSMSResponse
 ) {
   const supabase = createServiceClient()
   const habit = await findOldestPendingHabit(userId)
@@ -149,6 +150,7 @@ async function handleHabitResponse(
     completed,
     response_value: responseValue,
     source: 'whatsapp',
+    ...(parsed.note ? { notes: parsed.note } : {}),
   })
 
   const streak = await calculateAndUpdateStreak(habit.id)
