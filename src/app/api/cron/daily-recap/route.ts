@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         .select('id')
         .eq('user_id', profile.id)
         .eq('direction', 'outbound')
-        .ilike('message_body', '%end of day%')
+        .ilike('message_body', 'Today:%')
         .gte('created_at', `${todayStr}T00:00:00`)
         .limit(1)
 
@@ -109,8 +109,9 @@ export async function GET(request: NextRequest) {
         consistencyMap[id] = counts.total > 0 ? Math.round((counts.done / counts.total) * 100) : 0
       }
 
-      // Build recap message
-      const lines: string[] = ['End of day recap:']
+      // Build recap — GSM-7 only (no emojis) to stay in 160-char/segment encoding
+      // Emojis trigger UCS-2 which drops to 70 chars/segment and 2x-3x cost
+      const lines: string[] = ['Today:']
       let anyLogged = false
 
       for (const habit of habits) {
@@ -121,19 +122,17 @@ export async function GET(request: NextRequest) {
         if (log?.completed) {
           anyLogged = true
           const valueStr = log.value && log.value !== 'Y' && log.value !== 'GRACE'
-            ? ` (${log.value}${habit.response_unit ? ' ' + habit.response_unit : ''})`
+            ? ` ${log.value}${habit.response_unit ? ' ' + habit.response_unit : ''}`
             : ''
-          lines.push(`${habit.name} logged${valueStr} ✓ 🔥 Streak: ${streak} days 📊 ${pct}% consistency`)
+          lines.push(`${habit.name}${valueStr} - done! Streak: ${streak}d | ${pct}% this month`)
         } else {
-          lines.push(`${habit.name} ✗ not logged today`)
+          lines.push(`${habit.name} - not logged`)
         }
       }
 
       if (!anyLogged) {
-        lines.push('')
-        lines.push('No habits logged today. Reply Y to log your first one!')
+        lines.push('No habits logged yet. Reply Y to log now!')
       } else {
-        lines.push('')
         lines.push('Keep the streak going!')
       }
 

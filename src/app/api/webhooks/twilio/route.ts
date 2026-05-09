@@ -231,11 +231,11 @@ async function handleStatsRequest(userId: string, phoneNumber: string, channel: 
     if (log.completed) logsByHabit[log.habit_id].completed++
   }
 
-  let stats = '📊 Your Stats (30d):\n\n'
+  let stats = 'Your Stats (30d):\n\n'
   habits.forEach((habit) => {
     const logs = logsByHabit[habit.id]
     const pct = logs && logs.total > 0 ? Math.round((logs.completed / logs.total) * 100) : 0
-    stats += `${habit.name}:\n🔥 ${habit.streak_count}d streak | ⭐ Best: ${habit.longest_streak}d | ✅ ${pct}% done\n\n`
+    stats += `${habit.name}: ${habit.streak_count}d streak | Best: ${habit.longest_streak}d | ${pct}% done\n\n`
   })
 
   await sendSMS({ to: phoneNumber, message: stats.trim(), userId, channel })
