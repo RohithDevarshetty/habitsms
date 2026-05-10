@@ -71,6 +71,10 @@ export async function getSubscription(subscriptionId: string) {
   return getClient().subscriptions.retrieve(subscriptionId)
 }
 
+export async function getPaymentInvoicePdf(paymentId: string): Promise<Response> {
+  return getClient().invoices.payments.retrieve(paymentId)
+}
+
 export function getTierFromProductId(productId: string): string {
   for (const [tier, id] of Object.entries(DODO_PRODUCT_IDS)) {
     if (id === productId) return tier

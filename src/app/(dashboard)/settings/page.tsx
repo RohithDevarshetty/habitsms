@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
+import { ArrowLeft, Copy, Check, Download } from 'lucide-react'
 
 const TIMEZONES = [
   { label: 'India (IST)', value: 'Asia/Kolkata' },
@@ -27,6 +27,14 @@ interface Profile {
   referral_code: string | null
 }
 
+interface PaymentRecord {
+  paymentId: string
+  totalAmount: number
+  currency: string
+  createdAt: string
+  invoiceId: string | null
+}
+
 export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [timezone, setTimezone] = useState('')
@@ -34,6 +42,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -57,6 +67,12 @@ export default function SettingsPage() {
       setTimezone(data.timezone || 'UTC')
     }
     setLoading(false)
+
+    const res = await fetch('/api/billing/history')
+    if (res.ok) {
+      const json = await res.json()
+      setPayments(json.payments || [])
+    }
   }
 
   async function handleSaveTimezone() {
@@ -74,6 +90,25 @@ export default function SettingsPage() {
   async function handleSignOut() {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  async function downloadInvoice(paymentId: string) {
+    setDownloadingId(paymentId)
+    try {
+      const res = await fetch(`/api/billing/invoice/${paymentId}`)
+      if (!res.ok) throw new Error('Failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `invoice-${paymentId}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Could not download invoice. Please try again.')
+    } finally {
+      setDownloadingId(null)
+    }
   }
 
   function copyReferralCode() {
@@ -146,6 +181,39 @@ export default function SettingsPage() {
             )}
           </div>
         </div>
+
+        {/* Billing History */}
+        {payments.length > 0 && (
+          <div className="liquid-glass rounded-2xl p-6">
+            <h2 className="font-heading italic text-lg text-white mb-4">Billing History</h2>
+            <div className="space-y-2">
+              {payments.map((p) => {
+                const amount = p.totalAmount != null
+                  ? (p.totalAmount / 100).toFixed(2)
+                  : null
+                const date = new Date(p.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                return (
+                  <div key={p.paymentId} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <div>
+                      <p className="text-sm font-body text-white">{date}</p>
+                      {amount && (
+                        <p className="text-xs font-body text-white/40">{p.currency?.toUpperCase()} {amount}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => downloadInvoice(p.paymentId)}
+                      disabled={downloadingId === p.paymentId}
+                      className="flex items-center gap-1.5 liquid-glass-strong rounded-full px-3 py-1.5 text-xs font-body text-white/70 hover:text-white transition disabled:opacity-50"
+                    >
+                      <Download size={12} />
+                      {downloadingId === p.paymentId ? 'Downloading…' : 'Invoice'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Timezone */}
         <div className="liquid-glass rounded-2xl p-6">

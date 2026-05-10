@@ -18,7 +18,43 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient()
 
-    switch (event.eventType) {
+    // Dodo uses dot-notation in webhook payloads (payment.succeeded, subscription.active)
+    const eventType: string = event.type || event.eventType || ''
+
+    switch (eventType) {
+      case 'payment.succeeded':
+      case 'payment_succeeded': {
+        const payment = event.data
+        const userId = payment.metadata?.userId
+
+        if (!userId) {
+          // Try to find user by customer ID
+          const { data: profile } = await supabase
+            .from('profiles').select('id').eq('dodo_customer_id', payment.customer?.customer_id).single()
+          if (!profile) { console.error('[Dodo] No user for payment:', payment.payment_id); break }
+
+          await supabase.from('subscription_events').insert({
+            user_id: profile.id,
+            event_type: 'payment_succeeded',
+            provider: 'dodo',
+            provider_event_id: payment.payment_id,
+            metadata: { payment_id: payment.payment_id, total_amount: payment.total_amount, currency: payment.currency, created_at: payment.created_at, invoice_id: payment.invoice_id },
+          })
+          break
+        }
+
+        await supabase.from('subscription_events').insert({
+          user_id: userId,
+          event_type: 'payment_succeeded',
+          provider: 'dodo',
+          provider_event_id: payment.payment_id,
+          metadata: { payment_id: payment.payment_id, total_amount: payment.total_amount, currency: payment.currency, created_at: payment.created_at, invoice_id: payment.invoice_id },
+        })
+        console.log(`[Dodo] Payment succeeded for user ${userId}: ${payment.payment_id}`)
+        break
+      }
+
+      case 'subscription.active':
       case 'subscription_created':
       case 'subscriptionactivated': {
         const subscription = event.data
@@ -63,6 +99,8 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'subscription.updated':
+      case 'subscription.renewed':
       case 'subscription_updated':
       case 'subscription_resumed': {
         const subscription = event.data
@@ -107,6 +145,9 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'subscription.cancelled':
+      case 'subscription.on_hold':
+      case 'subscription.expired':
       case 'subscription_cancelled':
       case 'subscription_paused': {
         const subscription = event.data
@@ -141,6 +182,7 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'payment.failed':
       case 'payment_failed': {
         const payment = event.data
 
@@ -186,7 +228,7 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`[Dodo] Unhandled event type: ${event.eventType}`)
+        console.log(`[Dodo] Unhandled event type: ${eventType}`)
     }
 
     return NextResponse.json({ received: true })

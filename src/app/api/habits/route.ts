@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 const HABIT_LIMITS: Record<string, number> = {
-  free: 0,
+  free: 1,
   starter: 3,
   pro: 50,
   team: 50,
@@ -25,15 +25,8 @@ export async function POST(request: NextRequest) {
     const tier = profile?.subscription_tier || 'free'
     const isActive = profile?.subscription_status === 'active'
 
-    // Free users can't create habits
-    if (tier === 'free' || !isActive) {
-      return NextResponse.json(
-        { error: 'Upgrade required', code: 'UPGRADE_REQUIRED' },
-        { status: 402 }
-      )
-    }
-
-    const limit = HABIT_LIMITS[tier] ?? 0
+    const effectiveTier = isActive ? tier : 'free'
+    const limit = HABIT_LIMITS[effectiveTier] ?? 1
     const { count } = await supabase
       .from('habits')
       .select('id', { count: 'exact', head: true })

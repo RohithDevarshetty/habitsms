@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HabitSMS — How It Works</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #040810;
+      --surface: rgba(255,255,255,0.04);
+      --surface-strong: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --text: #f0f0f0;
+      --muted: rgba(255,255,255,0.4);
+      --dim: rgba(255,255,255,0.22);
+      --accent: #4f7fff;
+      --accent-glow: rgba(79,127,255,0.18);
+      --green: #3fcf8e;
+      --orange: #f97316;
+      --purple: #a78bfa;
+      --radius: 16px;
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background gradient ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(900px 600px at 15% 10%, rgba(60,90,200,0.12), transparent 60%),
+        radial-gradient(600px 500px at 85% 80%, rgba(100,60,200,0.08), transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ── */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    section { padding: 72px 0 48px; }
+    section + section { padding-top: 32px; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(4,8,16,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 24px;
+    }
+
+    nav .inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-style: italic;
+      font-weight: 700;
+      font-size: 1.2rem;
+      letter-spacing: -0.02em;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    nav a.cta {
+      background: white;
+      color: #000;
+      padding: 8px 20px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    nav a.cta:hover { opacity: 0.85; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 96px 0 56px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 540px;
+      margin: 0 auto 40px;
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      color: #000;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 14px 32px;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 40px rgba(255,255,255,0.1);
+    }
+    .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 40px rgba(255,255,255,0.15); }
+
+    /* ── Section headings ── */
+    .section-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    h2 {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .section-desc {
+      color: var(--muted);
+      font-size: 1rem;
+      margin-bottom: 40px;
+      max-width: 560px;
+    }
+
+    /* ── Card grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 640px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    /* ── Flow steps ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 24px;
+      position: relative;
+    }
+
+    .step:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 27px;
+      top: 56px;
+      bottom: -24px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--border), transparent);
+    }
+
+    .step-num {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .step-body {
+      padding: 12px 0 40px;
+    }
+
+    .step-body h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .step-body p {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    /* ── SMS bubble mockup ── */
+    .sms-demo {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-top: 16px;
+      max-width: 400px;
+    }
+
+    .bubble-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .bubble-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4f7fff, #a78bfa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .bubble-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .bubble-sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .bubbles { display: flex; flex-direction: column; gap: 10px; }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      max-width: 85%;
+    }
+
+    .bubble.inbound {
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      align-self: flex-start;
+    }
+
+    .bubble.outbound {
+      background: rgba(79,127,255,0.15);
+      border: 1px solid rgba(79,127,255,0.25);
+      align-self: flex-end;
+      text-align: right;
+    }
+
+    .bubble-time {
+      font-size: 0.68rem;
+      color: var(--dim);
+      margin-top: 4px;
+      text-align: inherit;
+    }
+
+    /* ── Commands table ── */
+    .commands {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    @media (max-width: 520px) { .commands { grid-template-columns: 1fr; } }
+
+    .command-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .command-key {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 8px;
+      white-space: nowrap;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .command-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ── Pricing ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 720px) { .pricing-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 440px) { .pricing-grid { grid-template-columns: 1fr; } }
+
+    .plan {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .plan.featured {
+      border-color: rgba(79,127,255,0.5);
+      background: rgba(79,127,255,0.06);
+      position: relative;
+    }
+
+    .plan-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 12px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .plan-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .plan-price {
+      font-size: 1.9rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .plan-price span {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .plan-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .plan-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .plan-features li::before {
+      content: '✓';
+      color: var(--green);
+      flex-shrink: 0;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    .plan-features li.na {
+      opacity: 0.35;
+    }
+
+    .plan-features li.na::before {
+      content: '—';
+      color: var(--dim);
+    }
+
+    /* ── Milestones ── */
+    .milestones {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .milestone {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .milestone-icon {
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    .milestone-days {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .milestone-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* ── Channels ── */
+    .channels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 560px) { .channels { grid-template-columns: 1fr; } }
+
+    .channel-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .channel-icon {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    .channel-card h3 {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .channel-card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .channel-tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-top: 10px;
+    }
+
+    .tag-active { background: rgba(63,207,142,0.15); color: var(--green); border: 1px solid rgba(63,207,142,0.25); }
+    .tag-beta   { background: rgba(249,115,22,0.12); color: var(--orange); border: 1px solid rgba(249,115,22,0.25); }
+
+    /* ── FAQ ── */
+    details {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    details + details { margin-top: 8px; }
+
+    summary {
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      content: '+';
+      color: var(--dim);
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+
+    details[open] summary::after {
+      transform: rotate(45deg);
+    }
+
+    details p {
+      margin-top: 12px;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── Divider ── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    /* ── CTA footer ── */
+    .cta-block {
+      text-align: center;
+      padding: 72px 0 96px;
+    }
+
+    .cta-block h2 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      margin-bottom: 14px;
+    }
+
+    .cta-block p {
+      color: var(--muted);
+      margin-bottom: 36px;
+      font-size: 1rem;
+    }
+
+    /* ── Tag chips ── */
+    .chip {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      color: var(--dim);
+      margin: 3px 2px;
+    }
+
+    /* ── Utility ── */
+    .text-accent { color: var(--accent); }
+    .text-green  { color: var(--green);  }
+    .text-orange { color: var(--orange); }
+    .text-purple { color: var(--purple); }
+    .mt-8  { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-24 { margin-top: 24px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ───────────────────────────────────────── -->
+<nav>
+  <div class="inner">
+    <a class="logo" href="https://habitsms.com">HabitSMS</a>
+    <a class="cta" href="https://habitsms.com/signup">Get Started Free</a>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────── -->
+<div class="container">
+  <div class="hero">
+    <div class="hero-badge">Complete Feature Guide</div>
+    <h1>Your habits.<br />Managed by text.</h1>
+    <p>HabitSMS sends you an SMS reminder at your chosen time. You reply with a single letter. That's it — no app to open, no notifications to ignore.</p>
+    <a class="hero-cta" href="https://habitsms.com/signup">
+      Start building habits →
+    </a>
+  </div>
+</div>
+
+<!-- ── How It Works ───────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">The core loop</div>
+    <h2>How it works</h2>
+    <p class="section-desc">Five steps from signup to a streak that sticks. The entire interaction happens inside your SMS app — no download required.</p>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Sign up</h3>
+            <p>Create your account with a phone number, email, or Google. Enter your phone number — that's where reminders land.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Choose your habits</h3>
+            <p>Pick from templates (workout, meditation, water, reading, sleep) or create a fully custom habit with a name, type, and unit.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Set your reminder time</h3>
+            <p>Choose what time each day you want to be reminded. All times are in your local timezone — change it anytime in Settings.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Reply to log</h3>
+            <p>At your chosen time, you get a text. Reply <strong>Y</strong> to mark it done, <strong>N</strong> to skip, or a number for tracking habits (e.g. "8" for 8 glasses of water).</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h3>Watch your streak grow</h3>
+            <p>Every completion extends your streak. Hit 7, 30, or 100 days and you'll get a celebration message. The dashboard shows your full history.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SMS demo -->
+      <div class="sms-demo">
+        <div class="bubble-header">
+          <div class="bubble-avatar">H</div>
+          <div>
+            <div class="bubble-name">HabitSMS</div>
+            <div class="bubble-sub">+1 (555) 012-3456</div>
+          </div>
+        </div>
+        <div class="bubbles">
+          <div>
+            <div class="bubble inbound">Did you Meditate today? Reply Y-Yes, N-No, SNOOZE-1hr, STATS-Streak</div>
+            <div class="bubble-time">7:00 AM</div>
+          </div>
+          <div>
+            <div class="bubble outbound">Y</div>
+            <div class="bubble-time">7:04 AM</div>
+          </div>
+          <div>
+            <div class="bubble inbound">Great job! Meditate logged. Streak: 8 days — keep it up!</div>
+            <div class="bubble-time">7:04 AM</div>
+          </div>
+          <div>
+            <div class="bubble inbound">How many glasses of water today? Reply with a number, Y to mark done, or N to skip.</div>
+            <div class="bubble-time">9:00 AM</div>
+          </div>
+          <div>
+            <div class="bubble outbound">6</div>
+            <div class="bubble-time">9:31 AM</div>
+          </div>
+          <div>
+            <div class="bubble inbound">Got it! Water logged: 6 glasses. Streak: 15 days!</div>
+            <div class="bubble-time">9:31 AM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── Habit Types ─────────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">What you can track</div>
+    <h2>Two habit types</h2>
+    <p class="section-desc">HabitSMS adapts to how you think about each goal — a simple yes/no or a measurable number.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-icon" style="background: rgba(63,207,142,0.12);">✓</div>
+        <h3>Boolean habits</h3>
+        <p>Did you do it or not? Reply <strong>Y</strong> for done and <strong>N</strong> to skip. Great for anything you either do or don't — workouts, journaling, cold showers, reading.</p>
+        <div class="mt-16" style="background: var(--surface-strong); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--dim);">
+          "Did you Work Out today? Reply Y-Yes, N-No…"
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon" style="background: rgba(79,127,255,0.12);">123</div>
+        <h3>Number-based habits</h3>
+        <p>Reply with any number for measurable goals. Set a unit (glasses, pages, minutes, hours) and your log shows the exact value. Reply <strong>Y</strong> to mark done without a specific count.</p>
+        <div class="mt-16" style="background: var(--surface-strong); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--dim);">
+          "How many glasses of water today?…"
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-24">
+      <p class="section-desc" style="margin-bottom:16px;">Built-in templates to get started fast:</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="chip">🏋️ Daily Workout</span>
+        <span class="chip">🧘 Meditation</span>
+        <span class="chip">💧 Water Intake</span>
+        <span class="chip">📖 Reading</span>
+        <span class="chip">😴 Sleep Tracking</span>
+        <span class="chip">✍️ Custom habit</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── SMS Commands ───────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">Keyboard shortcuts for your habits</div>
+    <h2>Every command you can send</h2>
+    <p class="section-desc">Text any of these to your HabitSMS number at any time. No app, no login — just a quick reply.</p>
+
+    <div class="commands">
+      <div class="command-item">
+        <span class="command-key">Y</span>
+        <span class="command-desc">Mark the oldest pending habit as completed</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">N</span>
+        <span class="command-desc">Skip today's habit — no streak penalty</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">8</span>
+        <span class="command-desc">Log a number for tracking habits (any integer)</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">SNOOZE</span>
+        <span class="command-desc">Remind me again in 1 hour</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">STATS</span>
+        <span class="command-desc">See your current streak and 30-day completion % for all habits</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">PAUSE</span>
+        <span class="command-desc">Stop all reminders (e.g. travel, vacation)</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">RESUME</span>
+        <span class="command-desc">Re-enable all paused reminders</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">GRACE</span>
+        <span class="command-desc">Use your monthly grace day to restore a streak broken yesterday</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">INVITE</span>
+        <span class="command-desc">Get your referral link — both of you get 1 free month</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">UPGRADE</span>
+        <span class="command-desc">View plans and upgrade your subscription via SMS</span>
+      </div>
+      <div class="command-item">
+        <span class="command-key">HELP</span>
+        <span class="command-desc">Get the full command list sent back to you</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── Streaks & Milestones ───────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">Staying motivated</div>
+    <h2>Streaks &amp; milestones</h2>
+    <p class="section-desc">Every logged day extends your streak. Miss a day and it resets — but you get one grace day per month to restore it.</p>
+
+    <div class="milestones">
+      <div class="milestone">
+        <div class="milestone-icon">🔥</div>
+        <div>
+          <div class="milestone-days text-orange">7 days</div>
+          <div class="milestone-label">One full week — you're building momentum</div>
+        </div>
+      </div>
+      <div class="milestone">
+        <div class="milestone-icon">⭐</div>
+        <div>
+          <div class="milestone-days text-accent">30 days</div>
+          <div class="milestone-label">A full month — the habit is becoming automatic</div>
+        </div>
+      </div>
+      <div class="milestone">
+        <div class="milestone-icon">👑</div>
+        <div>
+          <div class="milestone-days text-purple">100 days</div>
+          <div class="milestone-label">Elite tier — this is genuinely who you are now</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-24" style="max-width: 520px;">
+      <h3 style="margin-bottom:10px;">Grace day</h3>
+      <p>Life happens. Once per month, text <strong>GRACE</strong> and HabitSMS will restore any streak that was broken yesterday — no questions asked. One use per calendar month. Your current-month count resets on the 1st.</p>
+    </div>
+  </section>
+</div>
+
+<!-- ── Daily Recap ────────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">Daily accountability</div>
+    <h2>8 PM end-of-day recap</h2>
+    <p class="section-desc">Every evening at 8 PM in your local timezone you get a summary of how today went — automatically, no setup needed.</p>
+
+    <div class="sms-demo">
+      <div class="bubble-header">
+        <div class="bubble-avatar">H</div>
+        <div>
+          <div class="bubble-name">HabitSMS</div>
+          <div class="bubble-sub">Daily recap · 8:00 PM</div>
+        </div>
+      </div>
+      <div class="bubbles">
+        <div>
+          <div class="bubble inbound">Today:<br>Workout - done! Streak: 12d | 88% this month<br>Meditation - done! Streak: 8d | 80% this month<br>Water - not logged<br><br>Keep the streak going!</div>
+          <div class="bubble-time">8:00 PM</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-16" style="max-width: 520px;">
+      <h3 style="margin-bottom:8px;">What's in the recap</h3>
+      <p>For each habit: completion status, current streak, and your 30-day consistency percentage. If you haven't logged anything yet, it nudges you to reply Y right then.</p>
+    </div>
+  </section>
+</div>
+
+<!-- ── Channels ───────────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">Where your messages land</div>
+    <h2>SMS &amp; WhatsApp</h2>
+    <p class="section-desc">HabitSMS works across the messaging channels you already use — same commands everywhere.</p>
+
+    <div class="channels">
+      <div class="channel-card">
+        <div class="channel-icon">💬</div>
+        <h3>SMS</h3>
+        <p>Works on every phone worldwide. No data connection needed — just a cellular signal. India and US fully supported; other countries via Twilio.</p>
+        <div><span class="channel-tag tag-active">Active</span></div>
+      </div>
+      <div class="channel-card">
+        <div class="channel-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="16" r="16" fill="#25D366" fill-opacity="0.15"/>
+            <path d="M16 5.5C10.2 5.5 5.5 10.2 5.5 16c0 1.9.5 3.6 1.4 5.2L5.5 26.5l5.4-1.4c1.5.8 3.2 1.3 5.1 1.3 5.8 0 10.5-4.7 10.5-10.5S21.8 5.5 16 5.5zm0 19.1c-1.7 0-3.3-.5-4.6-1.3l-.3-.2-3.2.8.9-3.1-.2-.3C7.7 19.2 7.1 17.7 7.1 16c0-4.9 4-8.9 8.9-8.9s8.9 4 8.9 8.9-4 8.9-8.9 8.9zm4.9-6.6c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.2-.7.9-.8 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.6l.4-.5c.1-.2.2-.3.2-.5 0-.2-.1-.4-.1-.5l-.8-2c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.1 0 1.3.9 2.5 1 2.6.1.2 1.8 2.7 4.3 3.8.6.3 1.1.4 1.5.5.6.2 1.2.2 1.6.1.5-.1 1.6-.6 1.8-1.2.2-.6.2-1.1.1-1.2l-.3-.1z" fill="#25D366"/>
+          </svg>
+        </div>
+        <h3>WhatsApp</h3>
+        <p>Full command support over WhatsApp Business. Richer formatting, emoji-enhanced responses, and 24-hour session windows for conversation context.</p>
+        <div><span class="channel-tag tag-beta">Beta</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── Dashboard ──────────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">Beyond SMS</div>
+    <h2>Web dashboard</h2>
+    <p class="section-desc">The dashboard gives you a visual overview of everything. Create habits, review history, and manage your account — all from the browser.</p>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon" style="background: rgba(79,127,255,0.12);">📊</div>
+        <h3>Habit tracker</h3>
+        <p>Streak counts, completion history, response values, and a full log for every habit you track.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background: rgba(63,207,142,0.12);">⚙️</div>
+        <h3>Habit management</h3>
+        <p>Create, edit, pause, or delete habits. Change reminder times and response types at any time.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background: rgba(167,139,250,0.12);">🌍</div>
+        <h3>Timezone control</h3>
+        <p>Set your timezone once in Settings. Every reminder and recap adjusts automatically — no manual math.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background: rgba(249,115,22,0.12);">🧾</div>
+        <h3>Billing history</h3>
+        <p>See all past payments and download a PDF invoice for any charge directly from the Settings page.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background: rgba(79,127,255,0.12);">🎁</div>
+        <h3>Referral program</h3>
+        <p>Share your unique link. When a friend subscribes, both of you get one free month added to your account.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background: rgba(63,207,142,0.12);">📋</div>
+        <h3>Command reference</h3>
+        <p>Full list of every SMS command, always accessible in Settings so you never need to look it up externally.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── Plans ──────────────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">Pricing</div>
+    <h2>Pick your plan</h2>
+    <p class="section-desc">All plans include streak tracking, the daily recap, and the full SMS command set. Upgrade or cancel anytime.</p>
+
+    <div class="pricing-grid">
+
+      <!-- Free -->
+      <div class="plan">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">$0</div>
+        <hr>
+        <ul class="plan-features">
+          <li>1 active habit</li>
+          <li>Daily SMS reminders</li>
+          <li>Streak tracking</li>
+          <li>Daily recap at 8 PM</li>
+          <li>All SMS commands</li>
+        </ul>
+      </div>
+
+      <!-- Starter -->
+      <div class="plan">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price">$7<span>/mo</span></div>
+        <hr>
+        <ul class="plan-features">
+          <li>3 active habits</li>
+          <li>Daily SMS reminders</li>
+          <li>Streak tracking</li>
+          <li>Daily recap at 8 PM</li>
+          <li>All SMS commands</li>
+        </ul>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan featured">
+        <div class="plan-badge">Most popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">$12<span>/mo</span></div>
+        <hr>
+        <ul class="plan-features">
+          <li>50 active habits</li>
+          <li>Daily SMS reminders</li>
+          <li>Streak tracking</li>
+          <li>Daily recap at 8 PM</li>
+          <li>All SMS commands</li>
+        </ul>
+      </div>
+
+      <!-- Team -->
+      <div class="plan">
+        <div class="plan-name">Team</div>
+        <div class="plan-price">$39<span>/mo</span></div>
+        <hr>
+        <ul class="plan-features">
+          <li>Everything in Pro</li>
+          <li>Up to 5 members</li>
+          <li>Shared accountability</li>
+          <li>50 habits/member</li>
+          <li>1 monthly invoice</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <p class="mt-16" style="font-size:0.82rem; color:var(--dim);">India pricing: Starter ₹99/mo · Pro ₹199/mo · Team ₹499/mo. All prices exclude applicable taxes.</p>
+  </section>
+</div>
+
+<!-- ── FAQ ────────────────────────────────────────── -->
+<div class="container">
+  <section>
+    <div class="section-label">Common questions</div>
+    <h2>FAQ</h2>
+    <p class="section-desc" style="margin-bottom:28px;">Quick answers to what people ask before signing up.</p>
+
+    <details>
+      <summary>Does it work internationally?</summary>
+      <p>Yes. SMS reminders work in India (via Twilio and MSG91 for lower costs) and the US. Other countries are supported via Twilio's global network. WhatsApp is available anywhere you have data.</p>
+    </details>
+
+    <details>
+      <summary>What if I miss a day?</summary>
+      <p>Your streak resets to zero. But you get one grace day per month — text GRACE the next morning and HabitSMS will restore any streak that was broken yesterday. You can only use it once per calendar month.</p>
+    </details>
+
+    <details>
+      <summary>Can I track multiple habits?</summary>
+      <p>Yes. Starter supports 3 active habits; Pro and Team support up to 50. Each habit gets its own reminder time and tracking history. When you reply, the oldest unanswered habit for the day is logged first.</p>
+    </details>
+
+    <details>
+      <summary>What if I want to take a break?</summary>
+      <p>Text PAUSE to stop all reminders immediately. Text RESUME when you're back. Your streak won't keep running while paused — but it also won't reset. It picks up from where you left off.</p>
+    </details>
+
+    <details>
+      <summary>How do I get an invoice?</summary>
+      <p>Go to Settings → Billing History. Every successful payment is listed there with a Download Invoice button. PDFs are generated by Dodo Payments and contain full billing details.</p>
+    </details>
+
+    <details>
+      <summary>What does the number in the plan price buy me exactly?</summary>
+      <p>Each active habit = one daily SMS reminder + streak tracking + participation in the daily recap. You can have up to the plan limit active at once. Inactive (paused) habits don't count toward the limit.</p>
+    </details>
+
+    <details>
+      <summary>Can I change my reminder time?</summary>
+      <p>Yes — edit any habit from the dashboard and change the reminder time. The next reminder will go out at the new time. Timezone is set per-account in Settings and applies to all your habits.</p>
+    </details>
+
+  </section>
+</div>
+
+<!-- ── CTA ────────────────────────────────────────── -->
+<div class="container">
+  <div class="cta-block">
+    <h2>Start your first streak today</h2>
+    <p>No app to install. Just sign up, pick a habit, and wait for your first text.</p>
+    <a class="hero-cta" href="https://habitsms.com/signup">Create your account →</a>
+  </div>
+</div>
+
+</body>
+</html>
