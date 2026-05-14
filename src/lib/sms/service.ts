@@ -234,4 +234,22 @@ export const SMS_TEMPLATES = {
 
   SNOOZE_CONFIRMED: (habitName: string) =>
     `Got it! Reminding you about ${habitName} in 1 hour.`,
+
+  BUDDY_OPT_IN: (userName: string) =>
+    `${userName} added you as their HabitSMS accountability buddy. We will text you only when they break a habit streak (max 1x/week). Reply YES to accept, STOP to decline.`,
+
+  BUDDY_OPT_IN_CONFIRMED: (userName: string) =>
+    `You are now ${userName}'s accountability buddy. You will get a short nudge if they break a streak. Reply STOP anytime to opt out.`,
+
+  BUDDY_OPT_OUT_CONFIRMED: () =>
+    `You will no longer receive HabitSMS buddy nudges. Take care!`,
+
+  BUDDY_NUDGE: (userName: string, habitName: string) =>
+    `${userName} just broke their ${habitName} streak on HabitSMS. A quick nudge from you might help them restart. Reply STOP to opt out.`,
+
+  BUDDY_USER_NOTIFIED_ACCEPTED: (buddyName: string) =>
+    `${buddyName} accepted your accountability invite. They will be notified if you break a streak.`,
+
+  BUDDY_USER_NOTIFIED_DECLINED: (buddyName: string) =>
+    `${buddyName} declined the accountability invite. You can pick a different buddy in Settings.`,
 }

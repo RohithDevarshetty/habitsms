@@ -7,6 +7,7 @@ import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
 import { findOldestPendingHabit } from '@/lib/sms/pending-queue'
 import { createCheckoutSession } from '@/lib/payments/dodo'
 import { isInboundRateLimited } from '@/lib/utils/rate-limit'
+import { handleBuddyInbound } from '@/lib/buddy/service'
 import { subMinutes } from 'date-fns'
 import crypto from 'crypto'
 
@@ -50,6 +51,11 @@ export async function POST(request: NextRequest) {
       console.warn(`[MSG91 webhook] Rate limit hit for ${from}`)
       return NextResponse.json({ message: 'Too many requests' }, { status: 429 })
     }
+
+    if (await handleBuddyInbound(from, messageBody)) {
+      return NextResponse.json({ message: 'Buddy reply handled' }, { status: 200 })
+    }
+
     const supabase = createServiceClient()
 
     const { data: profile, error: profileError } = await supabase

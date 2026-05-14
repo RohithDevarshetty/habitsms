@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { startOfDay, subDays, format } from 'date-fns'
+import { maybeNudgeBuddy } from '@/lib/buddy/service'
 
 export async function calculateAndUpdateStreak(habitId: string): Promise<number> {
   const supabase = createServiceClient()
@@ -67,7 +68,7 @@ export async function resetMissedStreaks() {
   // Get all active habits
   const { data: habits } = await supabase
     .from('habits')
-    .select('id, user_id, streak_count')
+    .select('id, user_id, name, streak_count')
     .eq('is_active', true)
     .gt('streak_count', 0)
 
@@ -85,7 +86,7 @@ export async function resetMissedStreaks() {
       .gte('logged_at', `${yesterday}T00:00:00`)
       .lte('logged_at', `${yesterday}T23:59:59`)
 
-    // If no log yesterday, reset streak
+    // If no log yesterday, reset streak and notify accountability buddy
     if (!logs || logs.length === 0) {
       await supabase
         .from('habits')
@@ -94,6 +95,12 @@ export async function resetMissedStreaks() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', habit.id)
+
+      try {
+        await maybeNudgeBuddy(habit.user_id, habit.name)
+      } catch (err) {
+        console.error('[Streaks] Buddy nudge failed:', err)
+      }
     }
   }
 }

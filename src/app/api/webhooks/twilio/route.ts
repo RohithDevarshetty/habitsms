@@ -8,6 +8,7 @@ import { calculateAndUpdateStreak } from '@/lib/habits/streaks'
 import { findOldestPendingHabit } from '@/lib/sms/pending-queue'
 import { createCheckoutSession } from '@/lib/payments/dodo'
 import { isInboundRateLimited } from '@/lib/utils/rate-limit'
+import { handleBuddyInbound } from '@/lib/buddy/service'
 import { subMinutes } from 'date-fns'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://habitsms.com'
@@ -43,6 +44,12 @@ export async function POST(request: NextRequest) {
     if (await isInboundRateLimited(from)) {
       console.warn(`[Twilio webhook] Rate limit hit for ${from}`)
       return NextResponse.json({ message: 'Too many requests' }, { status: 429 })
+    }
+
+    // Buddy opt-in / opt-out replies must be handled before normal user routing
+    // because buddies are not always HabitSMS users themselves.
+    if (await handleBuddyInbound(from, messageBody)) {
+      return NextResponse.json({ message: 'Buddy reply handled' }, { status: 200 })
     }
 
     const supabase = createServiceClient()

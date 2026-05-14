@@ -25,6 +25,9 @@ interface Profile {
   subscription_tier: string
   subscription_status: string
   referral_code: string | null
+  buddy_phone: string | null
+  buddy_name: string | null
+  buddy_consent_status: 'pending' | 'accepted' | 'declined' | null
 }
 
 interface PaymentRecord {
@@ -44,6 +47,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [buddyPhone, setBuddyPhone] = useState('')
+  const [buddyName, setBuddyName] = useState('')
+  const [buddyBusy, setBuddyBusy] = useState(false)
+  const [buddyError, setBuddyError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -58,7 +65,7 @@ export default function SettingsPage() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('phone_number, timezone, subscription_tier, subscription_status, referral_code')
+      .select('phone_number, timezone, subscription_tier, subscription_status, referral_code, buddy_phone, buddy_name, buddy_consent_status')
       .eq('id', user.id)
       .single()
 
@@ -108,6 +115,43 @@ export default function SettingsPage() {
       alert('Could not download invoice. Please try again.')
     } finally {
       setDownloadingId(null)
+    }
+  }
+
+  async function handleSaveBuddy() {
+    setBuddyError(null)
+    if (!buddyPhone.trim()) {
+      setBuddyError('Enter a phone number')
+      return
+    }
+    setBuddyBusy(true)
+    try {
+      const res = await fetch('/api/buddy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: buddyPhone.trim(), name: buddyName.trim() }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setBuddyError(json.error || 'Failed to save buddy')
+        return
+      }
+      setBuddyPhone('')
+      setBuddyName('')
+      await loadProfile()
+    } finally {
+      setBuddyBusy(false)
+    }
+  }
+
+  async function handleRemoveBuddy() {
+    if (!confirm('Remove your accountability buddy? They will be notified.')) return
+    setBuddyBusy(true)
+    try {
+      await fetch('/api/buddy', { method: 'DELETE' })
+      await loadProfile()
+    } finally {
+      setBuddyBusy(false)
     }
   }
 
@@ -240,6 +284,84 @@ export default function SettingsPage() {
           >
             {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save Timezone'}
           </button>
+        </div>
+
+        {/* Accountability Buddy */}
+        <div className="liquid-glass rounded-2xl p-6">
+          <h2 className="font-heading italic text-lg text-white mb-2">Accountability Buddy</h2>
+          <p className="text-sm font-body text-white/40 mb-4">
+            Pick one person who gets a text when you break a streak. Max 1 nudge per week. They must opt in by replying YES.
+          </p>
+
+          {profile?.buddy_phone ? (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-white/5">
+                <span className="text-sm font-body text-white/50">Buddy</span>
+                <span className="text-sm font-body text-white">
+                  {profile.buddy_name || profile.buddy_phone}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-white/5">
+                <span className="text-sm font-body text-white/50">Phone</span>
+                <span className="text-sm font-body text-white/70">{profile.buddy_phone}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-white/5">
+                <span className="text-sm font-body text-white/50">Status</span>
+                <span
+                  className={`text-sm font-body font-medium ${
+                    profile.buddy_consent_status === 'accepted'
+                      ? 'text-green-400'
+                      : profile.buddy_consent_status === 'declined'
+                      ? 'text-red-400'
+                      : 'text-yellow-400'
+                  }`}
+                >
+                  {profile.buddy_consent_status === 'accepted'
+                    ? 'Opted in'
+                    : profile.buddy_consent_status === 'declined'
+                    ? 'Declined'
+                    : 'Awaiting reply'}
+                </span>
+              </div>
+              <button
+                onClick={handleRemoveBuddy}
+                disabled={buddyBusy}
+                className="w-full liquid-glass rounded-full py-2.5 text-sm font-body text-red-400 hover:text-red-300 transition disabled:opacity-50"
+              >
+                {buddyBusy ? 'Removing…' : 'Remove buddy'}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <input
+                type="tel"
+                placeholder="+15551234567"
+                value={buddyPhone}
+                onChange={e => setBuddyPhone(e.target.value)}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body placeholder:text-white/30 focus:outline-none focus:border-white/30 transition"
+              />
+              <input
+                type="text"
+                placeholder="Their name (optional)"
+                value={buddyName}
+                onChange={e => setBuddyName(e.target.value)}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-body placeholder:text-white/30 focus:outline-none focus:border-white/30 transition"
+              />
+              {buddyError && (
+                <p className="text-xs font-body text-red-400">{buddyError}</p>
+              )}
+              <button
+                onClick={handleSaveBuddy}
+                disabled={buddyBusy}
+                className="w-full bg-white text-black rounded-full py-2.5 text-sm font-body font-semibold hover:bg-white/90 transition disabled:opacity-50"
+              >
+                {buddyBusy ? 'Sending invite…' : 'Send invite SMS'}
+              </button>
+              <p className="text-xs font-body text-white/30">
+                We will text them once to ask for consent. Only proceeds if they reply YES.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Referral */}
