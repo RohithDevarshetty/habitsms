@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import type { WhatsAppTemplate } from './templates'
 
 const BASE_URL = 'https://graph.facebook.com/v19.0'
 
@@ -59,6 +60,60 @@ export async function sendWhatsAppMessage(
       return { success: false, windowClosed: true, error: '24hr session window expired' }
     }
     return { success: false, error: data?.error?.message || 'Meta API error' }
+  }
+
+  return { success: true, messageId: data?.messages?.[0]?.id }
+}
+
+/**
+ * Send a pre-approved WhatsApp template message.
+ *
+ * Unlike free-form text, a template can be delivered at any time — it is the
+ * only way to reach a user outside the 24-hour customer-service window, so all
+ * proactive sends (reminders, summaries, welcome) must go through here.
+ */
+export async function sendWhatsAppTemplate(
+  to: string,
+  template: WhatsAppTemplate
+): Promise<MetaSendResult> {
+  const config = getMetaConfig()
+  if (!config) throw new Error('Meta WhatsApp not configured')
+
+  // Strip + prefix — Meta expects digits only
+  const recipient = to.replace(/^\+/, '')
+
+  const components =
+    template.params.length > 0
+      ? [
+          {
+            type: 'body',
+            parameters: template.params.map((text) => ({ type: 'text', text })),
+          },
+        ]
+      : undefined
+
+  const response = await fetch(`${BASE_URL}/${config.phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: recipient,
+      type: 'template',
+      template: {
+        name: template.name,
+        language: { code: template.language },
+        ...(components ? { components } : {}),
+      },
+    }),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    return { success: false, error: data?.error?.message || 'Meta template send error' }
   }
 
   return { success: true, messageId: data?.messages?.[0]?.id }

@@ -2,7 +2,8 @@ import { twilioClient, TWILIO_PHONE_NUMBER, TWILIO_WHATSAPP_NUMBER, formatTochan
 import { createServiceClient } from '@/lib/supabase/server'
 import { parsePhoneNumber } from 'libphonenumber-js'
 import { sendMSG91SMS, isIndianNumber, MSG91_COST_CENTS, getMSG91Config } from '@/lib/msg91/sms'
-import { sendWhatsAppMessage, getMetaConfig, META_WHATSAPP_COST_PAISE } from '@/lib/meta/whatsapp'
+import { sendWhatsAppMessage, sendWhatsAppTemplate, getMetaConfig, META_WHATSAPP_COST_PAISE } from '@/lib/meta/whatsapp'
+import type { WhatsAppTemplate } from '@/lib/meta/templates'
 
 interface SendSMSParams {
   to: string
@@ -10,6 +11,13 @@ interface SendSMSParams {
   userId: string
   habitId?: string
   channel?: MessageChannel
+  /**
+   * Approved WhatsApp template for proactive sends. Required when `channel` is
+   * 'whatsapp' and the message goes out outside the 24-hour session window
+   * (reminders, summaries, welcome). Ignored for SMS. The `message` is still
+   * used as the SMS body, the in-window WhatsApp text, and the logged copy.
+   */
+  template?: WhatsAppTemplate
 }
 
 interface SMSResult {
@@ -87,6 +95,7 @@ export async function sendSMS({
   userId,
   habitId,
   channel = 'sms',
+  template,
 }: SendSMSParams): Promise<SMSResult> {
   try {
     const normalizedTo = to.startsWith('+') ? to : `+${to}`
@@ -96,8 +105,6 @@ export async function sendSMS({
     }
 
     const formattedPhone = parsed.format('E.164')
-    let activeProvider = selectProvider(formattedPhone)
-    
     let messageId: string | null = null
     let status = 'sent'
     
@@ -106,19 +113,32 @@ export async function sendSMS({
       const metaConfig = getMetaConfig()
 
       if (metaConfig) {
-        const result = await sendWhatsAppMessage(formattedPhone, message)
-        if (result.success) {
-          await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'sent', 'meta', result.messageId ?? null, META_WHATSAPP_COST_PAISE)
-          return { success: true, messageId: result.messageId }
+        // Proactive sends carry an approved template — the only way to reach a
+        // user outside the 24-hour session window. Interactive replies have no
+        // template and go out as free-form text within that window.
+        if (template) {
+          const result = await sendWhatsAppTemplate(formattedPhone, template)
+          if (result.success) {
+            await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'sent', 'meta', result.messageId ?? null, META_WHATSAPP_COST_PAISE)
+            return { success: true, messageId: result.messageId }
+          }
+          // Template send failed — fall through to Twilio WhatsApp
+          console.warn('[Meta] WhatsApp template send failed, falling back to Twilio:', result.error)
+        } else {
+          const result = await sendWhatsAppMessage(formattedPhone, message)
+          if (result.success) {
+            await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'sent', 'meta', result.messageId ?? null, META_WHATSAPP_COST_PAISE)
+            return { success: true, messageId: result.messageId }
+          }
+          if (result.windowClosed) {
+            // 24hr session expired and no template supplied — cannot deliver
+            console.warn(`[Meta] 24hr window expired for ${formattedPhone}`)
+            await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'window_closed', 'meta', null, 0)
+            return { success: false, error: '24hr session window expired' }
+          }
+          // Other Meta error — fall through to Twilio WhatsApp
+          console.warn('[Meta] WhatsApp send failed, falling back to Twilio:', result.error)
         }
-        if (result.windowClosed) {
-          // 24hr session expired — log but don't fall back (template needed, not a plain text retry)
-          console.warn(`[Meta] 24hr window expired for ${formattedPhone}`)
-          await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'window_closed', 'meta', null, 0)
-          return { success: false, error: '24hr session window expired' }
-        }
-        // Other Meta error — fall through to Twilio WhatsApp
-        console.warn('[Meta] WhatsApp send failed, falling back to Twilio:', result.error)
       }
 
       const twilioMessage = await twilioClient.messages.create({
@@ -132,7 +152,8 @@ export async function sendSMS({
       return { success: true, messageId }
     }
     
-    // For SMS, use activeProvider based on country
+    // For SMS, pick the provider based on country (MSG91 for India, else Twilio)
+    let activeProvider = selectProvider(formattedPhone)
     if (activeProvider === 'msg91') {
       const result = await sendMSG91SMS(formattedPhone, message)
       if (!result.success) {
@@ -189,10 +210,8 @@ export const SMS_TEMPLATES = {
   CONFIRMATION: (habitName: string, streak: number) =>
     `Great job! ${habitName} logged! Current streak: ${streak} days. Keep it up!`,
 
-  MILESTONE: (streak: number, habitName: string) =>
-    `Amazing! ${streak}-day streak for ${habitName}! You are unstoppable. Keep it up!`,
-
-  // Keep specific aliases for the milestone values used in webhook handlers
+  // One template per milestone — the streak value is baked in so the copy
+  // stays exact-match for DLT approval (see docs/dlt-templates.md).
   MILESTONE_7: (habitName: string) =>
     `Amazing! 7-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 

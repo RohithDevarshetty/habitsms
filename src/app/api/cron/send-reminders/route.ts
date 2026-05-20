@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
+import { WHATSAPP_TEMPLATES } from '@/lib/meta/templates'
+import type { MessageChannel } from '@/lib/twilio/client'
 import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
+
+// Build the reminder body + matching WhatsApp template for a habit.
+// The template is only attached for WhatsApp, where proactive sends land
+// outside the 24-hour window and must use a pre-approved template.
+function buildReminder(
+  habit: { name: string; response_type: string; response_unit: string | null },
+  channel: MessageChannel
+) {
+  const isBoolean = habit.response_type === 'boolean'
+  const unit = habit.response_unit || 'units'
+  const message = isBoolean
+    ? SMS_TEMPLATES.REMINDER_BOOLEAN(habit.name)
+    : SMS_TEMPLATES.REMINDER_NUMBER(unit, habit.name)
+  const template =
+    channel === 'whatsapp'
+      ? isBoolean
+        ? WHATSAPP_TEMPLATES.reminderBoolean(habit.name)
+        : WHATSAPP_TEMPLATES.reminderNumber(unit, habit.name)
+      : undefined
+  return { message, template }
+}
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: NextRequest): boolean {
@@ -42,7 +65,7 @@ export async function GET(request: NextRequest) {
         reminder_time,
         response_type,
         response_unit,
-        profiles!inner(phone_number, timezone)
+        profiles!inner(phone_number, timezone, preferred_channel)
       `)
       .eq('is_active', true)
       .eq('reminder_enabled', true)
@@ -83,17 +106,18 @@ export async function GET(request: NextRequest) {
             continue
           }
 
-          // Send reminder SMS
-          const message =
-            habit.response_type === 'boolean'
-              ? SMS_TEMPLATES.REMINDER_BOOLEAN(habit.name)
-              : SMS_TEMPLATES.REMINDER_NUMBER(habit.response_unit || 'units', habit.name)
+          // Send reminder on the user's preferred channel
+          const channel: MessageChannel =
+            profile.preferred_channel === 'whatsapp' ? 'whatsapp' : 'sms'
+          const { message, template } = buildReminder(habit, channel)
 
           const result = await sendSMS({
             to: profile.phone_number,
             message,
             userId: habit.user_id,
             habitId: habit.id,
+            channel,
+            template,
           })
 
           if (result.success) {
@@ -117,7 +141,7 @@ export async function GET(request: NextRequest) {
         id,
         user_id,
         habit_id,
-        habits!inner(name, response_type, response_unit, profiles!inner(phone_number, timezone))
+        habits!inner(name, response_type, response_unit, profiles!inner(phone_number, timezone, preferred_channel))
       `)
       .eq('task_type', 'send_reminder')
       .eq('status', 'pending')
@@ -129,22 +153,23 @@ export async function GET(request: NextRequest) {
           name: string
           response_type: string
           response_unit: string
-          profiles: { phone_number: string; timezone: string }
+          profiles: { phone_number: string; timezone: string; preferred_channel: string }
         }
         const profile = Array.isArray(habit.profiles) ? habit.profiles[0] : habit.profiles
 
         if (!profile) continue
 
-        const message =
-          habit.response_type === 'boolean'
-            ? SMS_TEMPLATES.REMINDER_BOOLEAN(habit.name)
-            : SMS_TEMPLATES.REMINDER_NUMBER(habit.response_unit || 'units', habit.name)
+        const channel: MessageChannel =
+          profile.preferred_channel === 'whatsapp' ? 'whatsapp' : 'sms'
+        const { message, template } = buildReminder(habit, channel)
 
         const result = await sendSMS({
           to: profile.phone_number,
           message,
           userId: task.user_id,
           habitId: task.habit_id,
+          channel,
+          template,
         })
 
         await supabase

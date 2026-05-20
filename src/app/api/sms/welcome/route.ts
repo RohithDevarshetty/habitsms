@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
+import { WHATSAPP_TEMPLATES } from '@/lib/meta/templates'
+import type { MessageChannel } from '@/lib/twilio/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +17,7 @@ export async function POST(request: NextRequest) {
     // Get user profile and first habit
     const { data: profile } = await supabase
       .from('profiles')
-      .select('phone_number')
+      .select('phone_number, preferred_channel')
       .eq('id', userId)
       .single()
 
@@ -36,10 +38,18 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.admin.getUserById(userId)
     const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'there'
 
+    const channel: MessageChannel =
+      profile.preferred_channel === 'whatsapp' ? 'whatsapp' : 'sms'
+
     await sendSMS({
       to: profile.phone_number,
       message: SMS_TEMPLATES.WELCOME(firstName, firstReminderTime),
       userId,
+      channel,
+      template:
+        channel === 'whatsapp'
+          ? WHATSAPP_TEMPLATES.welcome(firstName, firstReminderTime)
+          : undefined,
     })
 
     return NextResponse.json({ success: true })
