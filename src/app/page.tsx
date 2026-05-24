@@ -376,6 +376,7 @@ function Pricing() {
 }
 
 function CtaFooter() {
+  const [entityOpen, setEntityOpen] = useState(false)
   return (
     <section className="relative overflow-hidden">
       {/* Background gradient */}
@@ -410,7 +411,23 @@ function CtaFooter() {
         </div>
 
         <div className="mt-20 md:mt-36 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="text-white/40 text-xs font-body">© 2026 HabitSMS. Operated by DEVARSHETTY BALRAJU. All rights reserved.</div>
+          <div className="text-white/40 text-xs font-body">
+            © 2026 HabitSMS. Operated by{' '}
+            <button
+              type="button"
+              onClick={() => setEntityOpen((v) => !v)}
+              className="underline decoration-dotted underline-offset-2 hover:text-white/70 focus:outline-none"
+              aria-expanded={entityOpen}
+            >
+              DEVARSHETTY BALRAJU
+            </button>
+            . All rights reserved.
+            {entityOpen && (
+              <span className="block mt-2 text-white/50">
+                GSTIN: 36AKIPD7060MIZX &middot; <a href="mailto:devarshettyrohith9199@gmail.com" className="hover:text-white/80">devarshettyrohith9199@gmail.com</a>
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-6">
             {['Privacy', 'Terms', 'Contact'].map((l) => (
               <a key={l} href="#" className="text-white/40 text-xs font-body hover:text-white/70">{l}</a>
