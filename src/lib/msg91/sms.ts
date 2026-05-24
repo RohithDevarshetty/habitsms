@@ -11,7 +11,7 @@ interface MSG91Response {
   error?: string
 }
 
-const DEFAULT_SENDER_ID = 'HABSMS'
+const DEFAULT_SENDER_ID = 'DVRBLR'
 
 export function getMSG91Config(): MSG91Config | null {
   const authKey = process.env.MSG91_AUTH_KEY
