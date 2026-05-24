@@ -11,10 +11,6 @@
     {
       "path": "/api/cron/nudge-free-users",
       "schedule": "0 18 * * 3"
-    },
-    {
-      "path": "/api/cron/daily-recap",
-      "schedule": "0 * * * *"
     }
   ]
 }
