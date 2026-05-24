@@ -179,7 +179,7 @@ TWILIO_WEBHOOK_SECRET=xxxxx
 
 # MSG91 (Alternative for India - Optional)
 MSG91_AUTH_KEY=xxxxx
-MSG91_SENDER_ID=HABSMS
+MSG91_SENDER_ID=DVRBLR
 
 # Stripe (International Payments)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxxxx

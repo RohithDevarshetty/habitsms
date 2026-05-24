@@ -410,7 +410,7 @@ function CtaFooter() {
         </div>
 
         <div className="mt-20 md:mt-36 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="text-white/40 text-xs font-body">© 2026 HabitSMS. All rights reserved.</div>
+          <div className="text-white/40 text-xs font-body">© 2026 HabitSMS. Operated by DEVARSHETTY BALRAJU. All rights reserved.</div>
           <div className="flex items-center gap-6">
             {['Privacy', 'Terms', 'Contact'].map((l) => (
               <a key={l} href="#" className="text-white/40 text-xs font-body hover:text-white/70">{l}</a>

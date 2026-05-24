@@ -135,3 +135,6 @@ __pycache__/
 .dev/
 .local/
 local/
+
+# Internal docs (DLT submissions, onboarding checklists, supporting PDFs) — local only, may contain PII
+docs/

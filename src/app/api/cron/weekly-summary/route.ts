@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendSMS, SMS_TEMPLATES } from '@/lib/sms/service'
+import { WHATSAPP_TEMPLATES } from '@/lib/meta/templates'
+import type { MessageChannel } from '@/lib/twilio/client'
 import { subDays, startOfWeek, endOfWeek, format } from 'date-fns'
 
 function verifyCronSecret(request: NextRequest): boolean {
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
     // Get all active users with their profiles
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, phone_number')
+      .select('id, phone_number, preferred_channel')
       .neq('subscription_status', 'cancelled')
 
     if (!profiles) {
@@ -69,11 +71,18 @@ export async function GET(request: NextRequest) {
         // Only send if user had some activity
         if (completedCount > 0) {
           const message = SMS_TEMPLATES.WEEKLY_SUMMARY(completedCount, longestStreak)
+          const channel: MessageChannel =
+            profile.preferred_channel === 'whatsapp' ? 'whatsapp' : 'sms'
 
           const result = await sendSMS({
             to: profile.phone_number,
             message,
             userId: profile.id,
+            channel,
+            template:
+              channel === 'whatsapp'
+                ? WHATSAPP_TEMPLATES.weeklySummary(completedCount, longestStreak)
+                : undefined,
           })
 
           if (result.success) {

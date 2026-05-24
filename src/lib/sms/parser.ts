@@ -10,6 +10,7 @@ export type SMSResponseType =
   | 'invite'
   | 'upgrade'
   | 'plan_select'
+  | 'channel'
   | 'help'
   | 'unknown'
 
@@ -17,6 +18,7 @@ export interface ParsedSMSResponse {
   type: SMSResponseType
   value?: number
   planTier?: 'starter' | 'pro'
+  channelPref?: 'sms' | 'whatsapp'
   note?: string
   originalText: string
 }
@@ -54,6 +56,8 @@ const PATTERNS = {
   upgrade: /^(upgrade|plans|pricing|subscribe|buy)$/i,
   plan_starter: /^(starter|start)$/i,
   plan_pro: /^(pro)$/i,
+  channel_whatsapp: /^(whatsapp|wa)$/i,
+  channel_sms: /^(sms|text)$/i,
   help: /^(help|\?|commands)$/i,
 }
 
@@ -129,6 +133,14 @@ export function parseSMSResponse(text: string): ParsedSMSResponse {
   }
   if (PATTERNS.plan_pro.test(trimmed)) {
     return { type: 'plan_select', planTier: 'pro', originalText: text }
+  }
+
+  // Check for channel switch (deliver future messages over WhatsApp or SMS)
+  if (PATTERNS.channel_whatsapp.test(trimmed)) {
+    return { type: 'channel', channelPref: 'whatsapp', originalText: text }
+  }
+  if (PATTERNS.channel_sms.test(trimmed)) {
+    return { type: 'channel', channelPref: 'sms', originalText: text }
   }
 
   // Check for help request

@@ -2,7 +2,8 @@ import { twilioClient, TWILIO_PHONE_NUMBER, TWILIO_WHATSAPP_NUMBER, formatTochan
 import { createServiceClient } from '@/lib/supabase/server'
 import { parsePhoneNumber } from 'libphonenumber-js'
 import { sendMSG91SMS, isIndianNumber, MSG91_COST_CENTS, getMSG91Config } from '@/lib/msg91/sms'
-import { sendWhatsAppMessage, getMetaConfig, META_WHATSAPP_COST_PAISE } from '@/lib/meta/whatsapp'
+import { sendWhatsAppMessage, sendWhatsAppTemplate, getMetaConfig, META_WHATSAPP_COST_PAISE } from '@/lib/meta/whatsapp'
+import type { WhatsAppTemplate } from '@/lib/meta/templates'
 
 interface SendSMSParams {
   to: string
@@ -10,6 +11,13 @@ interface SendSMSParams {
   userId: string
   habitId?: string
   channel?: MessageChannel
+  /**
+   * Approved WhatsApp template for proactive sends. Required when `channel` is
+   * 'whatsapp' and the message goes out outside the 24-hour session window
+   * (reminders, summaries, welcome). Ignored for SMS. The `message` is still
+   * used as the SMS body, the in-window WhatsApp text, and the logged copy.
+   */
+  template?: WhatsAppTemplate
 }
 
 interface SMSResult {
@@ -87,6 +95,7 @@ export async function sendSMS({
   userId,
   habitId,
   channel = 'sms',
+  template,
 }: SendSMSParams): Promise<SMSResult> {
   try {
     const normalizedTo = to.startsWith('+') ? to : `+${to}`
@@ -96,8 +105,6 @@ export async function sendSMS({
     }
 
     const formattedPhone = parsed.format('E.164')
-    let activeProvider = selectProvider(formattedPhone)
-    
     let messageId: string | null = null
     let status = 'sent'
     
@@ -106,19 +113,32 @@ export async function sendSMS({
       const metaConfig = getMetaConfig()
 
       if (metaConfig) {
-        const result = await sendWhatsAppMessage(formattedPhone, message)
-        if (result.success) {
-          await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'sent', 'meta', result.messageId ?? null, META_WHATSAPP_COST_PAISE)
-          return { success: true, messageId: result.messageId }
+        // Proactive sends carry an approved template — the only way to reach a
+        // user outside the 24-hour session window. Interactive replies have no
+        // template and go out as free-form text within that window.
+        if (template) {
+          const result = await sendWhatsAppTemplate(formattedPhone, template)
+          if (result.success) {
+            await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'sent', 'meta', result.messageId ?? null, META_WHATSAPP_COST_PAISE)
+            return { success: true, messageId: result.messageId }
+          }
+          // Template send failed — fall through to Twilio WhatsApp
+          console.warn('[Meta] WhatsApp template send failed, falling back to Twilio:', result.error)
+        } else {
+          const result = await sendWhatsAppMessage(formattedPhone, message)
+          if (result.success) {
+            await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'sent', 'meta', result.messageId ?? null, META_WHATSAPP_COST_PAISE)
+            return { success: true, messageId: result.messageId }
+          }
+          if (result.windowClosed) {
+            // 24hr session expired and no template supplied — cannot deliver
+            console.warn(`[Meta] 24hr window expired for ${formattedPhone}`)
+            await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'window_closed', 'meta', null, 0)
+            return { success: false, error: '24hr session window expired' }
+          }
+          // Other Meta error — fall through to Twilio WhatsApp
+          console.warn('[Meta] WhatsApp send failed, falling back to Twilio:', result.error)
         }
-        if (result.windowClosed) {
-          // 24hr session expired — log but don't fall back (template needed, not a plain text retry)
-          console.warn(`[Meta] 24hr window expired for ${formattedPhone}`)
-          await logSMS(userId, formattedPhone, message, habitId, 'outbound', 'window_closed', 'meta', null, 0)
-          return { success: false, error: '24hr session window expired' }
-        }
-        // Other Meta error — fall through to Twilio WhatsApp
-        console.warn('[Meta] WhatsApp send failed, falling back to Twilio:', result.error)
       }
 
       const twilioMessage = await twilioClient.messages.create({
@@ -132,7 +152,8 @@ export async function sendSMS({
       return { success: true, messageId }
     }
     
-    // For SMS, use activeProvider based on country
+    // For SMS, pick the provider based on country (MSG91 for India, else Twilio)
+    let activeProvider = selectProvider(formattedPhone)
     if (activeProvider === 'msg91') {
       const result = await sendMSG91SMS(formattedPhone, message)
       if (!result.success) {
@@ -178,32 +199,31 @@ export async function sendSMS({
   }
 }
 
-// SMS Templates — text must match DLT-approved templates exactly (see docs/dlt-templates.md)
+// SMS Templates — text MUST match DLT-approved templates exactly (see docs/dlt-templates.md).
+// TRAI rule: every template body must contain the brand name "HabitSMS".
 export const SMS_TEMPLATES = {
   REMINDER_BOOLEAN: (habitName: string) =>
-    `Did you ${habitName} today? Reply Y-Yes, N-No, SNOOZE-1hr, STATS-Streak`,
+    `Habit reminder: Did you complete your ${habitName} habit today? Reply YES if done, NO if not, SNOOZE to delay 1 hour, or STATS for streak. -DEVARSHETTY BALRAJU`,
 
   REMINDER_NUMBER: (unit: string, habitName: string) =>
-    `How many ${unit} of ${habitName} today? Reply with a number or N to skip.`,
+    `Habit reminder: How many ${unit} of your ${habitName} habit did you complete today? Reply with a number to log, or NO to skip. -HabitSMS`,
 
   CONFIRMATION: (habitName: string, streak: number) =>
-    `Great job! ${habitName} logged! Current streak: ${streak} days. Keep it up!`,
+    `HabitSMS log confirmed: ${habitName} done! Current streak: ${streak} days. Keep it up!`,
 
-  MILESTONE: (streak: number, habitName: string) =>
-    `Amazing! ${streak}-day streak for ${habitName}! You are unstoppable. Keep it up!`,
-
-  // Keep specific aliases for the milestone values used in webhook handlers
+  // All three milestones share one DLT template `HabitSMS milestone: {#var#}-day streak for {#var#}! You are unstoppable. Keep it up!`.
+  // The streak number is passed as the first variable; baking it inline still scrubs correctly.
   MILESTONE_7: (habitName: string) =>
-    `Amazing! 7-day streak for ${habitName}! You are unstoppable. Keep it up!`,
+    `HabitSMS milestone: 7-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 
   MILESTONE_30: (habitName: string) =>
-    `Amazing! 30-day streak for ${habitName}! You are unstoppable. Keep it up!`,
+    `HabitSMS milestone: 30-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 
   MILESTONE_100: (habitName: string) =>
-    `Amazing! 100-day streak for ${habitName}! You are unstoppable. Keep it up!`,
+    `HabitSMS milestone: 100-day streak for ${habitName}! You are unstoppable. Keep it up!`,
 
   WEEKLY_SUMMARY: (completedCount: number, longestStreak: number) =>
-    `Your week: ${completedCount} habits completed. Best streak: ${longestStreak} days. Keep crushing it! Reply STATS.`,
+    `HabitSMS weekly summary: ${completedCount} habits completed. Best streak: ${longestStreak} days. Reply STATS for details.`,
 
   WELCOME: (firstName: string, firstReminderTime: string) =>
     `Welcome to HabitSMS ${firstName}! First reminder at ${firstReminderTime}. Reply HELP for commands. Lets build habits!`,
@@ -212,13 +232,13 @@ export const SMS_TEMPLATES = {
     `HabitSMS: Y-Done, N-Skip, SNOOZE-1hr, STATS-Stats, PAUSE-Pause, RESUME-Resume, GRACE-Restore streak, INVITE-Refer friend, UPGRADE-Plans, HELP-This list`,
 
   STREAK_BROKEN: (habitName: string, previousStreak: number) =>
-    `Your ${habitName} streak of ${previousStreak} days was broken. Don't worry! Start fresh today. Reply Y when done!`,
+    `HabitSMS streak alert: your ${habitName} streak of ${previousStreak} days was broken. Start fresh today. Reply Y when done.`,
 
   UPGRADE: (starterPrice = '7', proPrice = '12') =>
-    `Which plan? STARTER Rs.${starterPrice}/mo-3 habits, PRO Rs.${proPrice}/mo-unlimited habits+summaries. Reply STARTER or PRO.`,
+    `HabitSMS plans: STARTER Rs.${starterPrice}/mo-3 habits, PRO Rs.${proPrice}/mo-unlimited. Reply STARTER or PRO.`,
 
   UPGRADE_LIMIT: (habitCount: number, appUrl: string) =>
-    `You have reached the ${habitCount}-habit limit. Upgrade to Pro for unlimited habits: ${appUrl}/upgrade`,
+    `HabitSMS: You have reached the ${habitCount}-habit limit. Upgrade to Pro for unlimited habits: ${appUrl}/upgrade`,
 
   PLAN_CHECKOUT: (tier: string, url: string) =>
     `Your HabitSMS ${tier.charAt(0).toUpperCase() + tier.slice(1)} plan checkout link: ${url} Link expires in 24 hours.`,
@@ -230,16 +250,16 @@ export const SMS_TEMPLATES = {
     `Your HabitSMS payment failed. Update your payment method to keep reminders active: ${appUrl}/billing`,
 
   RESUME: () =>
-    `Reminders are back on! Your habits are waiting. Reply Y when you complete one.`,
+    `HabitSMS reminders resumed. Your habits are waiting. Reply Y when you complete one.`,
 
   SNOOZE_CONFIRMED: (habitName: string) =>
-    `Got it! Reminding you about ${habitName} in 1 hour.`,
+    `HabitSMS snooze: reminding you about ${habitName} in 1 hour.`,
 
   BUDDY_OPT_IN: (userName: string) =>
     `${userName} added you as their HabitSMS accountability buddy. We will text you only when they break a habit streak (max 1x/week). Reply YES to accept, STOP to decline.`,
 
   BUDDY_OPT_IN_CONFIRMED: (userName: string) =>
-    `You are now ${userName}'s accountability buddy. You will get a short nudge if they break a streak. Reply STOP anytime to opt out.`,
+    `You are now ${userName}'s HabitSMS accountability buddy. You will get a short nudge if they break a streak. Reply STOP to opt out.`,
 
   BUDDY_OPT_OUT_CONFIRMED: () =>
     `You will no longer receive HabitSMS buddy nudges. Take care!`,
@@ -248,8 +268,8 @@ export const SMS_TEMPLATES = {
     `${userName} just broke their ${habitName} streak on HabitSMS. A quick nudge from you might help them restart. Reply STOP to opt out.`,
 
   BUDDY_USER_NOTIFIED_ACCEPTED: (buddyName: string) =>
-    `${buddyName} accepted your accountability invite. They will be notified if you break a streak.`,
+    `${buddyName} accepted your HabitSMS accountability invite. They will be notified if you break a streak.`,
 
   BUDDY_USER_NOTIFIED_DECLINED: (buddyName: string) =>
-    `${buddyName} declined the accountability invite. You can pick a different buddy in Settings.`,
+    `${buddyName} declined your HabitSMS accountability invite. Pick a different buddy in Settings.`,
 }
