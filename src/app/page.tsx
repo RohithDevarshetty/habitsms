@@ -424,7 +424,7 @@ function CtaFooter() {
             . All rights reserved.
             {entityOpen && (
               <span className="block mt-2 text-white/50">
-                GSTIN: XXXXX &middot; <a href="mailto:devarshettyrohith9199@gmail.com" className="hover:text-white/80">devarshettyrohith9199@gmail.com</a>
+                GSTIN: 36AKIPD7060MIZX &middot; <a href="mailto:devarshettyrohith9199@gmail.com" className="hover:text-white/80">devarshettyrohith9199@gmail.com</a>
               </span>
             )}
           </div>
